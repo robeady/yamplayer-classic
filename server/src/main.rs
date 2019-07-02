@@ -43,7 +43,7 @@ impl PlayerApp {
         let source = rodio::Decoder::new(Cursor::new(buffer))?;
         let duration_secs = source.total_duration().expect("unknown duration").as_secs();
         println!(
-            "playing track with length: {}:{}",
+            "playing track with length: {}:{:02}",
             duration_secs / 60,
             duration_secs % 60
         );
