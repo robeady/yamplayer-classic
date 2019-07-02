@@ -1,5 +1,5 @@
+use actix_web::{error, web, App, HttpServer, Responder, Result};
 use actix_web::{post, HttpResponse};
-use actix_web::{web, App, HttpServer, Responder};
 use rodio::{Device, Sink, Source};
 use serde_derive::{Deserialize, Serialize};
 use std::env;
@@ -8,7 +8,7 @@ use std::fs::File;
 use std::io::{self, Cursor, Read};
 use std::sync::Mutex;
 
-type Try<T> = Result<T, Box<dyn Error>>;
+type Try<T> = std::result::Result<T, Box<dyn Error>>;
 
 fn main_cmd() -> Try<()> {
     let path_arg = env::args().nth(1).ok_or("first argument: file to play")?;
@@ -57,10 +57,13 @@ impl PlayerApp {
 }
 
 #[post("/play")]
-fn play(state: web::Data<Mutex<PlayerApp>>, req: web::Json<PlayRequest>) -> HttpResponse {
+fn play(state: web::Data<Mutex<PlayerApp>>, req: web::Json<PlayRequest>) -> Result<()> {
+    println!("loading path {}", req.path);
     let mut player = state.lock().unwrap();
-    player.play_file(&req.path).unwrap();
-    HttpResponse::Ok().finish()
+    player
+        .play_file(&req.path)
+        .map_err(error::ErrorInternalServerError)?;
+    Ok(())
 }
 
 fn run_server() -> Try<()> {
