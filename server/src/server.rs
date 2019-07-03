@@ -7,7 +7,7 @@ use serde_derive::{Deserialize, Serialize};
 use std::error::Error;
 use std::fs::File;
 use std::io::{Cursor, Read};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 type Try<T> = std::result::Result<T, Box<dyn Error>>;
 
@@ -16,15 +16,29 @@ struct PlayRequest {
     path: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct VolumeRequest {
+    volume: f32,
+}
+
 pub struct PlayerApp {
-    device: Device,
-    sink: Option<Sink>,
+    device: Arc<Device>,
+    sink: Sink,
 }
 
 impl PlayerApp {
     pub fn new() -> Try<PlayerApp> {
-        let device = rodio::default_output_device().ok_or("no output device")?;
-        Ok(PlayerApp { device, sink: None })
+        let device = Arc::new(rodio::default_output_device().ok_or("no output device")?);
+        let sink = Sink::new(&device);
+        Ok(PlayerApp { device, sink })
+    }
+
+    pub fn volume(&self) -> f32 {
+        self.sink.volume()
+    }
+
+    pub fn set_volume(&mut self, volume: f32) {
+        self.sink.set_volume(volume)
     }
 
     pub fn play_file(&mut self, path: &str) -> Try<()> {
@@ -38,16 +52,17 @@ impl PlayerApp {
             duration_secs / 60,
             duration_secs % 60
         );
-        self.sink.as_ref().map(|s| s.stop());
+        self.sink.stop();
         let new_sink = Sink::new(&self.device);
         new_sink.append(source);
+        new_sink.set_volume(self.sink.volume());
         new_sink.play();
-        self.sink = Some(new_sink);
+        self.sink = new_sink;
         Ok(())
     }
 }
 
-#[post("/play")]
+#[post("/player/play")]
 fn play(state: web::Data<Mutex<PlayerApp>>, req: web::Json<PlayRequest>) -> Result<()> {
     log::info!("loading path {}", req.path);
     let mut player = state.lock().unwrap();
@@ -57,12 +72,24 @@ fn play(state: web::Data<Mutex<PlayerApp>>, req: web::Json<PlayRequest>) -> Resu
     Ok(())
 }
 
+#[post("/player/volume")]
+fn set_volume(state: web::Data<Mutex<PlayerApp>>, req: web::Json<VolumeRequest>) -> String {
+    let mut player = state.lock().unwrap();
+    player.set_volume(req.volume);
+    "".to_string()
+}
+
 pub fn run_server() -> Try<()> {
     let player_app = PlayerApp::new()?;
     let state = web::Data::new(Mutex::new(player_app));
-    HttpServer::new(move || App::new().register_data(state.clone()).service(play))
-        .bind("127.0.0.1:8080")?
-        .run()?;
+    HttpServer::new(move || {
+        App::new()
+            .register_data(state.clone())
+            .service(play)
+            .service(set_volume)
+    })
+    .bind("127.0.0.1:8080")?
+    .run()?;
     Ok(())
 }
 
