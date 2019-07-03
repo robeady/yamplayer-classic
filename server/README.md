@@ -1,6 +1,14 @@
 # Prototype music player server
 
+## Installation
+
+Use rustup to install the rust toolchain
+
+## Running
+
 Run with `cargo run --release`. It will start the server on port 8080.
+
+## Usage
 
 Play a file by POSTing to /play:
 
