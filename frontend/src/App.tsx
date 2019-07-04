@@ -1,10 +1,12 @@
 import React, { useState } from "react"
+import Autosuggest from "react-autosuggest"
 import "./App.scss"
 
 const App = () => {
     const [trackFilePath, setTrackFilePath] = useState("")
     const [serverResponse, setServerResponse] = useState({ status: 0, body: "" })
     const [volume, setVolume] = useState(1.0)
+    const [suggestions, setSuggestions] = useState([] as string[])
     return (
         <>
             <div className="App">
@@ -12,7 +14,17 @@ const App = () => {
                 <div>
                     <label>
                         <span>Track file path: </span>
-                        <input value={trackFilePath} onChange={e => setTrackFilePath(e.target.value)} />
+                        <Autosuggest
+                            suggestions={suggestions}
+                            getSuggestionValue={x => x}
+                            inputProps={{
+                                onChange: (_, e) => setTrackFilePath(e.newValue),
+                                value: trackFilePath,
+                            }}
+                            onSuggestionsFetchRequested={({ value }) => getSuggestions(value).then(setSuggestions)}
+                            onSuggestionsClearRequested={() => setSuggestions([])}
+                            renderSuggestion={s => <div>{s}</div>}
+                        />
                     </label>
                     <button onClick={() => play(trackFilePath).then(setServerResponse)}>Play</button>
                 </div>
@@ -64,6 +76,22 @@ async function play(track: string) {
     })
     const body = await response.text()
     return { status: response.status, body }
+}
+
+async function getSuggestions(prefix: string) {
+    const response = await fetch("/completions/file-path", {
+        method: "POST",
+        body: JSON.stringify({ prefix }),
+        headers: {
+            "Content-Type": "application/json",
+        },
+    })
+    if (response.status === 200) {
+        const body = await response.json()
+        return body.completions as string[]
+    } else {
+        return []
+    }
 }
 
 export default App

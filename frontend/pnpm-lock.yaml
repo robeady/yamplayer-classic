@@ -2,15 +2,17 @@ dependencies:
   '@types/jest': 24.0.15
   '@types/node': 12.0.10
   '@types/react': 16.8.22
+  '@types/react-autosuggest': 9.3.9
   '@types/react-dom': 16.8.4
   node-sass: 4.12.0
   react: 16.8.6
-  react-dom: 16.8.6
-  react-scripts: 3.0.1
+  react-autosuggest: 9.4.3_react@16.8.6
+  react-dom: 16.8.6_react@16.8.6
+  react-scripts: 3.0.1_typescript@3.5.2
   typescript: 3.5.2
 devDependencies:
   prettier: 1.12.1
-lockfileVersion: 5
+lockfileVersion: 5.1
 packages:
   /@babel/code-frame/7.0.0:
     dependencies:
@@ -1885,6 +1887,12 @@ packages:
     dev: false
     resolution:
       integrity: sha512-ce5d3q03Ex0sy4R14722Rmt6MT07Ua+k4FwDfdcToYJcMKNtRVQvJ6JCAPdAmAnbRb6CsX6aYb9m96NGod9uTw==
+  /@types/react-autosuggest/9.3.9:
+    dependencies:
+      '@types/react': 16.8.22
+    dev: false
+    resolution:
+      integrity: sha512-MuDqgOZmbcT4Uzj4boMY3icf90dlvPTFZ1nnXHYaRKmk7ZPG7srI/In1lTxUvZsgoS+WAbz2CIEKAktCXfJmwg==
   /@types/react-dom/16.8.4:
     dependencies:
       '@types/react': 16.8.22
@@ -1925,13 +1933,14 @@ packages:
     dev: false
     resolution:
       integrity: sha512-SOhuU4wNBxhhTHxYaiG5NY4HBhDIDnJF60GU+2LqHAdKKer86//e4yg69aENCtQ04n0ovz+tq2YPME5t5yp4pw==
-  /@typescript-eslint/eslint-plugin/1.6.0_eslint@5.16.0:
+  /@typescript-eslint/eslint-plugin/1.6.0_eslint@5.16.0+typescript@3.5.2:
     dependencies:
-      '@typescript-eslint/parser': 1.6.0_eslint@5.16.0
-      '@typescript-eslint/typescript-estree': 1.6.0
+      '@typescript-eslint/parser': 1.6.0_eslint@5.16.0+typescript@3.5.2
+      '@typescript-eslint/typescript-estree': 1.6.0_typescript@3.5.2
       eslint: 5.16.0
       requireindex: 1.2.0
-      tsutils: 3.14.0
+      tsutils: 3.14.0_typescript@3.5.2
+      typescript: 3.5.2
     dev: false
     engines:
       node: ^6.14.0 || ^8.10.0 || >=9.10.0
@@ -1940,12 +1949,13 @@ packages:
       typescript: '*'
     resolution:
       integrity: sha512-U224c29E2lo861TQZs6GSmyC0OYeRNg6bE9UVIiFBxN2MlA0nq2dCrgIVyyRbC05UOcrgf2Wk/CF2gGOPQKUSQ==
-  /@typescript-eslint/parser/1.6.0_eslint@5.16.0:
+  /@typescript-eslint/parser/1.6.0_eslint@5.16.0+typescript@3.5.2:
     dependencies:
-      '@typescript-eslint/typescript-estree': 1.6.0
+      '@typescript-eslint/typescript-estree': 1.6.0_typescript@3.5.2
       eslint: 5.16.0
       eslint-scope: 4.0.3
       eslint-visitor-keys: 1.0.0
+      typescript: 3.5.2
     dev: false
     engines:
       node: ^6.14.0 || ^8.10.0 || >=9.10.0
@@ -1954,10 +1964,11 @@ packages:
       typescript: '*'
     resolution:
       integrity: sha512-VB9xmSbfafI+/kI4gUK3PfrkGmrJQfh0N4EScT1gZXSZyUxpsBirPL99EWZg9MmPG0pzq/gMtgkk7/rAHj4aQw==
-  /@typescript-eslint/typescript-estree/1.6.0:
+  /@typescript-eslint/typescript-estree/1.6.0_typescript@3.5.2:
     dependencies:
       lodash.unescape: 4.0.1
       semver: 5.5.0
+      typescript: 3.5.2
     dev: false
     engines:
       node: '>=6.14.0'
@@ -4193,8 +4204,8 @@ packages:
       integrity: sha512-JwiqFD9KdGVVpeuRa68yU3zZnBEOcPs0nKW7wZzXky8Z7tffdYUHbe11bPCV5jYlK6DVdKLWLm0f5I/QlL0Kmw==
   /eslint-config-react-app/4.0.1_47d904b597a9fef680fd995ac05a13f9:
     dependencies:
-      '@typescript-eslint/eslint-plugin': 1.6.0_eslint@5.16.0
-      '@typescript-eslint/parser': 1.6.0_eslint@5.16.0
+      '@typescript-eslint/eslint-plugin': 1.6.0_eslint@5.16.0+typescript@3.5.2
+      '@typescript-eslint/parser': 1.6.0_eslint@5.16.0+typescript@3.5.2
       babel-eslint: 10.0.1_eslint@5.16.0
       confusing-browser-globals: 1.0.7
       eslint: 5.16.0
@@ -6260,6 +6271,9 @@ packages:
       node: '>=6'
     peerDependencies:
       jest-resolve: '*'
+    peerDependenciesMeta:
+      jest-resolve:
+        optional: true
     resolution:
       integrity: sha512-pgFw2tm54fzgYvc/OHrnysABEObZCUNFnhjoRjaVOCN8NYc032/gVjPaHD4Aq6ApkSieWtfKAFQtmDKAmhupnQ==
   /jest-pnp-resolver/1.2.1_jest-resolve@24.8.0:
@@ -6270,6 +6284,9 @@ packages:
       node: '>=6'
     peerDependencies:
       jest-resolve: '*'
+    peerDependenciesMeta:
+      jest-resolve:
+        optional: true
     resolution:
       integrity: sha512-pgFw2tm54fzgYvc/OHrnysABEObZCUNFnhjoRjaVOCN8NYc032/gVjPaHD4Aq6ApkSieWtfKAFQtmDKAmhupnQ==
   /jest-regex-util/24.3.0:
@@ -7468,6 +7485,12 @@ packages:
     dev: false
     resolution:
       integrity: sha512-fexhUFFPTGV8ybAtSIGbV6gOkSv8UtRbDBnAyLQw4QPKkgNlsH2ByPGtMUqdWkos6YCRmAqViwgZrJc/mRDzZQ==
+  /object-assign/3.0.0:
+    dev: false
+    engines:
+      node: '>=0.10.0'
+    resolution:
+      integrity: sha1-m+3VygiXlJvKR+f/QIBi1Un1h/I=
   /object-assign/4.1.1:
     dev: false
     engines:
@@ -7999,12 +8022,14 @@ packages:
     dev: false
     resolution:
       integrity: sha512-2qHaIQr2VLRFoxe2nASzsV6ef4yOOH+Fi9FBOVH6cqeSgUnoyySPZkxzLuzd+RYOQTRpROA0ztTMqxROKSb/nA==
-  /pnp-webpack-plugin/1.2.1:
+  /pnp-webpack-plugin/1.2.1_typescript@3.5.2:
     dependencies:
-      ts-pnp: 1.1.2
+      ts-pnp: 1.1.2_typescript@3.5.2
     dev: false
     engines:
       node: '>=6'
+    peerDependencies:
+      typescript: '*'
     resolution:
       integrity: sha512-W6GctK7K2qQiVR+gYSv/Gyt6jwwIH4vwdviFqx+Y2jAtVf5eZyYIDf5Ac2NCDMBiX5yWscBLZElPTsyA1UtVVA==
   /portfinder/1.0.20:
@@ -8967,6 +8992,28 @@ packages:
       node: '>=6'
     resolution:
       integrity: sha512-LbVpT1NdzTdDDs7xEZdebjDrqsvKi5UyVKUQqtTYYNyC1JJYVAwNQWe4ybWvoT2V2WW9PGVO2u5Y6aVj4ER/Ow==
+  /react-autosuggest/9.4.3_react@16.8.6:
+    dependencies:
+      prop-types: 15.7.2
+      react: 16.8.6
+      react-autowhatever: 10.2.0_react@16.8.6
+      shallow-equal: 1.2.0
+    dev: false
+    peerDependencies:
+      react: '>=0.14.7'
+    resolution:
+      integrity: sha512-wFbp5QpgFQRfw9cwKvcgLR8theikOUkv8PFsuLYqI2PUgVlx186Cz8MYt5bLxculi+jxGGUUVt+h0esaBZZouw==
+  /react-autowhatever/10.2.0_react@16.8.6:
+    dependencies:
+      prop-types: 15.7.2
+      react: 16.8.6
+      react-themeable: 1.1.0
+      section-iterator: 2.0.0
+    dev: false
+    peerDependencies:
+      react: '>=0.14.7'
+    resolution:
+      integrity: sha512-dqHH4uqiJldPMbL8hl/i2HV4E8FMTDEdVlOIbRqYnJi0kTpWseF9fJslk/KS9pGDnm80JkYzVI+nzFjnOG/u+g==
   /react-dev-utils/9.0.1:
     dependencies:
       '@babel/code-frame': 7.0.0
@@ -8999,11 +9046,12 @@ packages:
       node: '>=8.10'
     resolution:
       integrity: sha512-pnaeMo/Pxel8aZpxk1WwxT3uXxM3tEwYvsjCYn5R7gNxjhN1auowdcLDzFB8kr7rafAj2rxmvfic/fbac5CzwQ==
-  /react-dom/16.8.6:
+  /react-dom/16.8.6_react@16.8.6:
     dependencies:
       loose-envify: 1.4.0
       object-assign: 4.1.1
       prop-types: 15.7.2
+      react: 16.8.6
       scheduler: 0.13.6
     dev: false
     peerDependencies:
@@ -9018,12 +9066,12 @@ packages:
     dev: false
     resolution:
       integrity: sha512-aUk3bHfZ2bRSVFFbbeVS4i+lNPZr3/WM5jT2J5omUVV1zzcs1nAaf3l51ctA5FFvCRbhrH0bdAsRRQddFJZPtA==
-  /react-scripts/3.0.1:
+  /react-scripts/3.0.1_typescript@3.5.2:
     dependencies:
       '@babel/core': 7.4.3
       '@svgr/webpack': 4.1.0
-      '@typescript-eslint/eslint-plugin': 1.6.0_eslint@5.16.0
-      '@typescript-eslint/parser': 1.6.0_eslint@5.16.0
+      '@typescript-eslint/eslint-plugin': 1.6.0_eslint@5.16.0+typescript@3.5.2
+      '@typescript-eslint/parser': 1.6.0_eslint@5.16.0+typescript@3.5.2
       babel-eslint: 10.0.1_eslint@5.16.0
       babel-jest: 24.8.0_@babel+core@7.4.3
       babel-loader: 8.0.5_@babel+core@7.4.3+webpack@4.29.6
@@ -9053,7 +9101,7 @@ packages:
       jest-watch-typeahead: 0.3.0
       mini-css-extract-plugin: 0.5.0_webpack@4.29.6
       optimize-css-assets-webpack-plugin: 5.0.1_webpack@4.29.6
-      pnp-webpack-plugin: 1.2.1
+      pnp-webpack-plugin: 1.2.1_typescript@3.5.2
       postcss-flexbugs-fixes: 4.1.0
       postcss-loader: 3.0.0
       postcss-normalize: 7.0.1
@@ -9066,7 +9114,7 @@ packages:
       semver: 6.0.0
       style-loader: 0.23.1
       terser-webpack-plugin: 1.2.3_webpack@4.29.6
-      ts-pnp: 1.1.2
+      ts-pnp: 1.1.2_typescript@3.5.2
       url-loader: 1.1.2_webpack@4.29.6
       webpack: 4.29.6_webpack@4.29.6
       webpack-dev-server: 3.2.1_webpack@4.29.6
@@ -9078,8 +9126,16 @@ packages:
     hasBin: true
     optionalDependencies:
       fsevents: 2.0.6
+    peerDependencies:
+      typescript: '*'
     resolution:
       integrity: sha512-LKEjBhVpEB+c312NeJhzF+NATxF7JkHNr5GhtwMeRS1cMeLElMeIu8Ye7WGHtDP7iz7ra4ryy48Zpo6G/cwWUw==
+  /react-themeable/1.1.0:
+    dependencies:
+      object-assign: 3.0.0
+    dev: false
+    resolution:
+      integrity: sha1-fURm3ZsrX6dQWHJ4JenxUro3mg4=
   /react/16.8.6:
     dependencies:
       loose-envify: 1.4.0
@@ -9602,6 +9658,10 @@ packages:
     dev: false
     resolution:
       integrity: sha1-jrBtualyMzOCTT9VMGQRSYR85dE=
+  /section-iterator/2.0.0:
+    dev: false
+    resolution:
+      integrity: sha1-v0RNev7rlK1Dw5rS+yYVFifMuio=
   /select-hose/2.0.0:
     dev: false
     resolution:
@@ -9742,6 +9802,10 @@ packages:
       node: '>=0.10.0'
     resolution:
       integrity: sha512-oeXreoKR/SyNJtRJMAKPDSvd28OqEwG4eR/xc856cRGBII7gX9lvAqDxusPm0846z/w/hWYjI1NpKwJ00NHzRA==
+  /shallow-equal/1.2.0:
+    dev: false
+    resolution:
+      integrity: sha512-Z21pVxR4cXsfwpMKMhCEIO1PCi5sp7KEp+CmOpBQ+E8GpHwKOw2sEzk7sgblM3d/j4z4gakoWEoPcjK0VJQogA==
   /shebang-command/1.2.0:
     dependencies:
       shebang-regex: 1.0.0
@@ -10479,21 +10543,27 @@ packages:
     dev: false
     resolution:
       integrity: sha512-m6s2OdQe5wgpFMC+pAJ+q9djG82O2jcHPOI6RNg1yy9rCYR+WD6Nbpl32fDpfC56nirdRy+opFa/Vk7HYhqaew==
-  /ts-pnp/1.1.2:
+  /ts-pnp/1.1.2_typescript@3.5.2:
+    dependencies:
+      typescript: 3.5.2
     dev: false
     engines:
       node: '>=6'
     peerDependencies:
       typescript: '*'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
     resolution:
       integrity: sha512-f5Knjh7XCyRIzoC/z1Su1yLLRrPrFCgtUAh/9fCSP6NKbATwpOL1+idQVXQokK9GRFURn/jYPGPfegIctwunoA==
   /tslib/1.10.0:
     dev: false
     resolution:
       integrity: sha512-qOebF53frne81cf0S9B41ByenJ3/IuH8yJKngAX35CmiZySA0khhkovshKK+jGCaMnVomla7gVlIcc3EvKPbTQ==
-  /tsutils/3.14.0:
+  /tsutils/3.14.0_typescript@3.5.2:
     dependencies:
       tslib: 1.10.0
+      typescript: 3.5.2
     dev: false
     engines:
       node: '>= 6'
@@ -11353,10 +11423,12 @@ specifiers:
   '@types/jest': 24.0.15
   '@types/node': 12.0.10
   '@types/react': 16.8.22
+  '@types/react-autosuggest': 9.3.9
   '@types/react-dom': 16.8.4
   node-sass: 4.12.0
   prettier: 1.12.1
   react: 16.8.6
+  react-autosuggest: 9.4.3
   react-dom: 16.8.6
   react-scripts: 3.0.1
   typescript: 3.5.2

@@ -1,5 +1,6 @@
 use actix_web::post;
-use actix_web::{error, web, App, HttpServer, Result};
+use actix_web::web::{Data, Json};
+use actix_web::{error, App, HttpServer, Result};
 use log;
 use rodio::decoder::Decoder;
 use rodio::{Device, Sink, Source};
@@ -7,6 +8,7 @@ use serde_derive::{Deserialize, Serialize};
 use std::error::Error;
 use std::fs::File;
 use std::io::{Cursor, Read};
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 type Try<T> = std::result::Result<T, Box<dyn Error>>;
@@ -63,7 +65,7 @@ impl PlayerApp {
 }
 
 #[post("/player/play")]
-fn play(state: web::Data<Mutex<PlayerApp>>, req: web::Json<PlayRequest>) -> Result<()> {
+fn play(state: Data<Mutex<PlayerApp>>, req: Json<PlayRequest>) -> Result<()> {
     log::info!("loading path {}", req.path);
     let mut player = state.lock().unwrap();
     player
@@ -73,20 +75,56 @@ fn play(state: web::Data<Mutex<PlayerApp>>, req: web::Json<PlayRequest>) -> Resu
 }
 
 #[post("/player/volume")]
-fn set_volume(state: web::Data<Mutex<PlayerApp>>, req: web::Json<VolumeRequest>) -> String {
+fn set_volume(state: Data<Mutex<PlayerApp>>, req: Json<VolumeRequest>) -> () {
     let mut player = state.lock().unwrap();
     player.set_volume(req.volume);
-    "".to_string()
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct CompleteFilePathReq {
+    prefix: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct CompleteFilePathResp {
+    completions: Vec<String>,
+}
+
+#[post("/completions/file-path")]
+fn handle_complete_file_path(req: Json<CompleteFilePathReq>) -> Result<Json<CompleteFilePathResp>> {
+    Ok(Json(CompleteFilePathResp {
+        completions: complete_file_path(&req.prefix).map_err(error::ErrorInternalServerError)?,
+    }))
+}
+
+fn complete_file_path(prefix: &str) -> Try<Vec<String>> {
+    let index_of_last_slash = prefix
+        .rfind('/')
+        .or_else(|| prefix.rfind('\\'))
+        .unwrap_or(prefix.len() - 1);
+    let (directory, prefix) = prefix.split_at(index_of_last_slash + 1);
+    let mut result = Vec::new();
+    for file in Path::new(directory).read_dir()? {
+        let name = file?
+            .file_name()
+            .into_string()
+            .map_err(|s| format!("invalid file name {:?}", s))?;
+        if name.starts_with(prefix) {
+            result.push([directory, &name].concat())
+        }
+    }
+    Ok(result)
 }
 
 pub fn run_server() -> Try<()> {
     let player_app = PlayerApp::new()?;
-    let state = web::Data::new(Mutex::new(player_app));
+    let state = Data::new(Mutex::new(player_app));
     HttpServer::new(move || {
         App::new()
             .register_data(state.clone())
             .service(play)
             .service(set_volume)
+            .service(handle_complete_file_path)
     })
     .bind("127.0.0.1:8080")?
     .run()?;
