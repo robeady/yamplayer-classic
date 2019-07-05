@@ -48,12 +48,14 @@ impl PlayerApp {
         let buffer = load_file(path)?;
         log::debug!("file loaded into memory");
         let source: Decoder<_> = Decoder::new(Cursor::new(buffer))?;
-        let duration_secs = source.total_duration().expect("unknown duration").as_secs();
-        log::info!(
-            "playing track with length: {}:{:02}",
-            duration_secs / 60,
-            duration_secs % 60
-        );
+        match source.total_duration().map(|d| d.as_secs()) {
+            None => log::warn!("playing track with unknown length"),
+            Some(duration_secs) => log::info!(
+                "playing track with length: {}:{:02}",
+                duration_secs / 60,
+                duration_secs % 60
+            ),
+        }
         self.sink.stop();
         let new_sink = Sink::new(&self.device);
         new_sink.append(source);
