@@ -1,0 +1,20 @@
+version: 2
+jobs:
+  build_and_test:
+    docker:
+      - image: circleci/rust:1.35.0-node
+    steps:
+      - checkout
+      - run: sudo npm install -g pnpm
+      # building cpal on linux requires ALSA development files
+      - run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+      - run: cargo build --verbose --manifest-path=server/Cargo.toml
+      - run: cargo test --verbose --manifest-path=server/Cargo.toml
+      - run: pnpm install --frozen-lockfile --prefix frontend
+      - run: pnpm run build --prefix frontend
+      - run: pnpm test --prefix frontend
+workflows:
+  version: 2
+  build_and_test:
+    jobs:
+      - build_and_test
