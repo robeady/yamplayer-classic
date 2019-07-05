@@ -5,7 +5,7 @@ jobs:
       - image: circleci/rust:1.35.0-node
     steps:
       - checkout
-      - run: curl -L https://unpkg.com/@pnpm/self-installer | node
+      - run: npm install -g pnpm
       - run: cargo build --verbose
       - run: cargo test --verbose
       - run: pnpm install --frozen-lockfile
