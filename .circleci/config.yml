@@ -1,0 +1,19 @@
+version: 2
+jobs:
+  build_and_test:
+    docker:
+      - image: circleci/rust-node:1.35.0
+    steps:
+      - checkout
+      - run: curl -L https://unpkg.com/@pnpm/self-installer | node
+      - run: cargo build --verbose
+      - run: cargo test --verbose
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - run: pnpm test
+
+workflows:
+  version: 2
+  build_and_test:
+    jobs:
+      - build_and_test
