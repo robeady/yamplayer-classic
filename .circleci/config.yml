@@ -2,7 +2,7 @@ version: 2
 jobs:
   build_and_test:
     docker:
-      - image: circleci/rust-node:1.35.0
+      - image: circleci/rust:1.35.0-node
     steps:
       - checkout
       - run: curl -L https://unpkg.com/@pnpm/self-installer | node
