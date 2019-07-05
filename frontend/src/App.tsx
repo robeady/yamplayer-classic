@@ -27,7 +27,7 @@ const App = () => {
                         />
                     </label>
                     <button onClick={() => play(trackFilePath).then(setServerResponse)}>Play</button>
-                    <button onClick={() => togglePause(trackFilePath).then(setServerResponse)}>Toggle Pause</button>
+                    <button onClick={() => togglePause().then(setServerResponse)}>Toggle Pause</button>
                 </div>
                 <div>
                     <label>
