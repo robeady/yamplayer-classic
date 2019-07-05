@@ -79,7 +79,7 @@ async function play(track: string) {
     return { status: response.status, body }
 }
 
-async function togglePause(track: string) {
+async function togglePause() {
     const response = await fetch("/player/toggle-pause", {
         method: "POST",
     })
