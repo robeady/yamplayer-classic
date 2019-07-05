@@ -5,7 +5,7 @@ jobs:
       - image: circleci/rust:1.35.0-node
     steps:
       - checkout
-      - run: npm install -g pnpm
+      - run: npm install pnpm
       - run: cargo build --verbose
       - run: cargo test --verbose
       - run: pnpm install --frozen-lockfile
