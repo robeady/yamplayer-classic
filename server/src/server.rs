@@ -43,6 +43,14 @@ impl PlayerApp {
         self.sink.set_volume(volume)
     }
 
+    pub fn toggle_pause(&mut self) {
+        if self.sink.is_paused() {
+            self.sink.play()
+        } else {
+            self.sink.pause()
+        }
+    }
+
     pub fn play_file(&mut self, path: &str) -> Try<()> {
         log::debug!("loading file");
         let buffer = load_file(path)?;
@@ -81,6 +89,13 @@ fn set_volume(state: Data<Mutex<PlayerApp>>, req: Json<VolumeRequest>) -> () {
     let mut player = state.lock().unwrap();
     player.set_volume(req.volume);
 }
+
+#[post("/player/toggle-pause")]
+fn toggle_pause(state: Data<Mutex<PlayerApp>>) -> () {
+    let mut player = state.lock().unwrap();
+    player.toggle_pause();
+}
+
 
 #[derive(Debug, Serialize, Deserialize)]
 struct CompleteFilePathReq {
@@ -127,6 +142,7 @@ pub fn run_server() -> Try<()> {
             .service(play)
             .service(set_volume)
             .service(handle_complete_file_path)
+            .service(toggle_pause)
     })
     .bind("127.0.0.1:8080")?
     .run()?;

@@ -27,6 +27,7 @@ const App = () => {
                         />
                     </label>
                     <button onClick={() => play(trackFilePath).then(setServerResponse)}>Play</button>
+                    <button onClick={() => togglePause(trackFilePath).then(setServerResponse)}>Toggle Pause</button>
                 </div>
                 <div>
                     <label>
@@ -73,6 +74,14 @@ async function play(track: string) {
         headers: {
             "Content-Type": "application/json",
         },
+    })
+    const body = await response.text()
+    return { status: response.status, body }
+}
+
+async function togglePause(track: string) {
+    const response = await fetch("/player/toggle-pause", {
+        method: "POST",
     })
     const body = await response.text()
     return { status: response.status, body }
