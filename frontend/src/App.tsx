@@ -62,9 +62,20 @@ function Library() {
         getTracksInLibrary().then(setTracks)
     }, [])
     return (
-        <div className="tracksTable">
-            <ol>{tracks.map(t => <li>{JSON.stringify(t)}</li>)}</ol>
+        <div>
+            <h2>Library</h2>
+            <ol className="trackList">{tracks.map(t => <Track track={t} />)}</ol>
         </div>
+    )
+}
+
+function Track(props: { track: Track }) {
+    return (
+        <li className="trackListRow">
+            <div className="title">{props.track.title}</div>
+            <div className="artist">{props.track.artist}</div>
+            <div className="album">{props.track.album}</div>
+        </li>
     )
 }
 

@@ -59,3 +59,22 @@
 .react-autosuggest__suggestion--highlighted {
     background-color: #ddd;
 }
+
+.trackList {
+    padding-left: 0;
+}
+
+.trackListRow {
+    display: flex;
+    // justify-content: space-between;
+    text-align: left;
+    .title {
+        flex-basis: 40%;
+    }
+    div {
+        flex-basis: 30%;
+        // flex-grow: 1;
+        // display: inline-block;
+        // width: 33%;
+    }
+}
