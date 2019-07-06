@@ -1,15 +1,16 @@
-use actix_web::post;
+use crate::library::{Library, Track};
 use actix_web::web::{Data, Json};
-use actix_web::{error, App, HttpServer, Result};
+use actix_web::{error, get, post, App, HttpResponse, HttpServer, Result};
 use log;
+use parking_lot::Mutex;
 use rodio::decoder::Decoder;
 use rodio::{Device, Sink, Source};
 use serde_derive::{Deserialize, Serialize};
 use std::error::Error;
 use std::fs::File;
-use std::io::{Cursor, Read};
+use std::io::{BufReader, Cursor, Read};
 use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 type Try<T> = std::result::Result<T, Box<dyn Error>>;
 
@@ -77,7 +78,7 @@ impl PlayerApp {
 #[post("/player/play")]
 fn play(state: Data<Mutex<PlayerApp>>, req: Json<PlayRequest>) -> Result<()> {
     log::info!("loading path {}", req.path);
-    let mut player = state.lock().unwrap();
+    let mut player = state.lock();
     player
         .play_file(&req.path)
         .map_err(error::ErrorInternalServerError)?;
@@ -86,16 +87,15 @@ fn play(state: Data<Mutex<PlayerApp>>, req: Json<PlayRequest>) -> Result<()> {
 
 #[post("/player/volume")]
 fn set_volume(state: Data<Mutex<PlayerApp>>, req: Json<VolumeRequest>) -> () {
-    let mut player = state.lock().unwrap();
+    let mut player = state.lock();
     player.set_volume(req.volume);
 }
 
 #[post("/player/toggle-pause")]
 fn toggle_pause(state: Data<Mutex<PlayerApp>>) -> () {
-    let mut player = state.lock().unwrap();
+    let mut player = state.lock();
     player.toggle_pause();
 }
-
 
 #[derive(Debug, Serialize, Deserialize)]
 struct CompleteFilePathReq {
@@ -112,6 +112,18 @@ fn handle_complete_file_path(req: Json<CompleteFilePathReq>) -> Result<Json<Comp
     Ok(Json(CompleteFilePathResp {
         completions: complete_file_path(&req.prefix).map_err(error::ErrorInternalServerError)?,
     }))
+}
+
+#[derive(Debug, Serialize)]
+struct LibraryResp<'a> {
+    tracks: Vec<&'a Track>,
+}
+
+#[get("/library")]
+fn list_library(library: Data<Mutex<Library>>) -> HttpResponse {
+    HttpResponse::Ok().json2(&LibraryResp {
+        tracks: library.lock().list_tracks().map(|(_, t)| t).collect(),
+    })
 }
 
 fn complete_file_path(prefix: &str) -> Try<Vec<String>> {
@@ -135,14 +147,19 @@ fn complete_file_path(prefix: &str) -> Try<Vec<String>> {
 
 pub fn run_server() -> Try<()> {
     let player_app = PlayerApp::new()?;
-    let state = Data::new(Mutex::new(player_app));
+    let mut library = Library::new();
+    bootstrap_library(&mut library)?;
+    let shared_player = Data::new(Mutex::new(player_app));
+    let shared_library = Data::new(Mutex::new(library));
     HttpServer::new(move || {
         App::new()
-            .register_data(state.clone())
+            .register_data(shared_player.clone())
+            .register_data(shared_library.clone())
             .service(play)
             .service(set_volume)
             .service(handle_complete_file_path)
             .service(toggle_pause)
+            .service(list_library)
     })
     .bind("127.0.0.1:8080")?
     .run()?;
@@ -154,4 +171,18 @@ fn load_file(path: &str) -> Try<Vec<u8>> {
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer)?;
     Ok(buffer)
+}
+
+#[derive(Deserialize)]
+struct Bootstrap {
+    tracks: Vec<String>,
+}
+
+fn bootstrap_library(library: &mut Library) -> Try<()> {
+    let b: Bootstrap = serde_yaml::from_reader(BufReader::new(File::open("bootstrap.yml")?))?;
+    for track in b.tracks {
+        log::info!("adding track {} to library", track);
+        library.add_track(track)?;
+    }
+    Ok(())
 }

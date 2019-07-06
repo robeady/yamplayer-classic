@@ -2,6 +2,7 @@ use std::env;
 use std::error::Error;
 use std::io;
 
+mod library;
 mod server;
 
 type Try<T> = std::result::Result<T, Box<dyn Error>>;
