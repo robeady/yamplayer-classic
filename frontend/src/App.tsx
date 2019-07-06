@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import Autosuggest from "react-autosuggest"
 import "./App.scss"
 
@@ -50,9 +50,38 @@ const App = () => {
                         Last server response: {serverResponse.status || ""} {serverResponse.body}
                     </span>
                 </div>
+                <Library />
             </div>
         </>
     )
+}
+
+function Library() {
+    const [tracks, setTracks] = useState([] as Track[])
+    useEffect(() => {
+        getTracksInLibrary().then(setTracks)
+    }, [])
+    return (
+        <div className="tracksTable">
+            <ol>{tracks.map(t => <li>{JSON.stringify(t)}</li>)}</ol>
+        </div>
+    )
+}
+
+interface Track {
+    album: string
+    artist: string
+    title: string
+}
+
+async function getTracksInLibrary() {
+    const response = await fetch("/library")
+    if (response.status === 200) {
+        const body = await response.json()
+        return body.tracks as Track[]
+    } else {
+        return []
+    }
 }
 
 async function serverSetVolume(volume: number) {
