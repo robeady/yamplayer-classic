@@ -8,7 +8,7 @@ mod http;
 mod library;
 mod player;
 mod server;
-
+mod websocket;
 
 fn main() -> Try<()> {
     env_logger::init();

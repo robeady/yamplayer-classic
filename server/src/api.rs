@@ -15,7 +15,7 @@ pub enum Request {
     GetLibrary,
 }
 
-fn json_res(result: Try<impl serde::Serialize>) -> std::result::Result<String, String> {
+fn json_res(result: Try<impl serde::Serialize>) -> JsonResult {
     match result {
         // TODO: think about what to do if serialisation fails. maybe a special Err?
         Ok(ref ok) => Ok(serde_json::to_string(ok).unwrap()),
@@ -23,7 +23,7 @@ fn json_res(result: Try<impl serde::Serialize>) -> std::result::Result<String, S
     }
 }
 
-fn json(value: &impl serde::Serialize) -> std::result::Result<String, String> {
+fn json(value: &impl serde::Serialize) -> JsonResult {
     // TODO: think about what to do if serialisation fails. maybe a special Err?
     Ok(serde_json::to_string(value).unwrap())
 }

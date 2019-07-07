@@ -18,3 +18,5 @@ Cargo.lock
 /frontend/build
 
 *npm-debug.log
+
+/server/bootstrap.yml

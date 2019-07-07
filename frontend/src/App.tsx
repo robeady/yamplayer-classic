@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react"
 import Autosuggest from "react-autosuggest"
 import "./App.scss"
+import { RPCWebSocket } from "./websocket"
 
 const App = () => {
     const [trackFilePath, setTrackFilePath] = useState("")
@@ -97,8 +98,15 @@ async function callApi(method: string, params?: unknown) {
     return { status: response.status, body }
 }
 
+const ws = new RPCWebSocket("ws://127.0.0.1:8080/ws")
+
+async function callWsApi(method: string, params?: unknown) {
+    const response = await ws.query({ method, params })
+    return { status: 200, body: response as any }
+}
+
 async function getTracksInLibrary() {
-    const response = await callApi("GetLibrary")
+    const response = await callWsApi("GetLibrary")
     if (response.status === 200) {
         return response.body.tracks as Track[]
     } else {
@@ -107,19 +115,19 @@ async function getTracksInLibrary() {
 }
 
 async function serverSetVolume(volume: number) {
-    return await callApi("ChangeVolume", { volume })
+    return await callWsApi("ChangeVolume", { volume })
 }
 
 async function play(track: string) {
-    return await callApi("Play", { path: track })
+    return await callWsApi("Play", { path: track })
 }
 
 async function togglePause() {
-    return await callApi("TogglePause")
+    return await callWsApi("TogglePause")
 }
 
 async function getSuggestions(prefix: string) {
-    const response = await callApi("CompleteFilePath", { prefix })
+    const response = await callWsApi("CompleteFilePath", { prefix })
     if (response.status === 200) {
         return response.body.completions as string[]
     } else {
