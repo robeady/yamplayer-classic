@@ -1,4 +1,4 @@
-use crate::Try;
+use crate::errors::{string_err, Try};
 use serde_derive::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -28,7 +28,7 @@ impl Library {
         let tag = |name: &str| {
             flac.get_tag(name)
                 .next()
-                .ok_or(format!("no {} tag in {}", name, file_path))
+                .ok_or(string_err(format!("no {} tag in {}", name, file_path)))
                 .map(|t| t.to_string())
         };
         let title = tag("TITLE")?;

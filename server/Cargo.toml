@@ -15,4 +15,6 @@ log = "0.4.6"
 env_logger = "0.6.2"
 parking_lot = "0.8.0"
 claxon = "0.4.2"
-
+actix-web-actors = "1.0.1"
+actix = "0.8.3"
+http = "0.1.17"

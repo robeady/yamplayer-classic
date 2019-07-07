@@ -85,59 +85,43 @@ interface Track {
     title: string
 }
 
+async function callApi(method: string, params?: unknown) {
+    const response = await fetch("/api", {
+        method: "POST",
+        body: JSON.stringify({ method, params }),
+        headers: {
+            "Content-Type": "application/json",
+        },
+    })
+    const body = await response.json()
+    return { status: response.status, body }
+}
+
 async function getTracksInLibrary() {
-    const response = await fetch("/library")
+    const response = await callApi("GetLibrary")
     if (response.status === 200) {
-        const body = await response.json()
-        return body.tracks as Track[]
+        return response.body.tracks as Track[]
     } else {
         return []
     }
 }
 
 async function serverSetVolume(volume: number) {
-    const response = await fetch("/player/volume", {
-        method: "POST",
-        body: JSON.stringify({ volume }),
-        headers: {
-            "Content-Type": "application/json",
-        },
-    })
-    const body = await response.text()
-    return { status: response.status, body }
+    return await callApi("ChangeVolume", { volume })
 }
 
 async function play(track: string) {
-    const response = await fetch("/player/play", {
-        method: "POST",
-        body: JSON.stringify({ path: track }),
-        headers: {
-            "Content-Type": "application/json",
-        },
-    })
-    const body = await response.text()
-    return { status: response.status, body }
+    return await callApi("Play", { path: track })
 }
 
 async function togglePause() {
-    const response = await fetch("/player/toggle-pause", {
-        method: "POST",
-    })
-    const body = await response.text()
-    return { status: response.status, body }
+    return await callApi("TogglePause")
 }
 
 async function getSuggestions(prefix: string) {
-    const response = await fetch("/completions/file-path", {
-        method: "POST",
-        body: JSON.stringify({ prefix }),
-        headers: {
-            "Content-Type": "application/json",
-        },
-    })
+    const response = await callApi("CompleteFilePath", { prefix })
     if (response.status === 200) {
-        const body = await response.json()
-        return body.completions as string[]
+        return response.body.completions as string[]
     } else {
         return []
     }
