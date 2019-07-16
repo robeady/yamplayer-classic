@@ -11,6 +11,12 @@ mod server;
 mod websocket;
 
 fn main() -> Try<()> {
-    env_logger::init();
+    setup_logging();
     server::run_server()
+}
+
+fn setup_logging() {
+    env_logger::Builder::from_default_env()
+        .default_format_timestamp_nanos(true)
+        .init()
 }
