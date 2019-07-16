@@ -5,6 +5,10 @@
     margin: 0 auto;
 }
 
+.clickable {
+    cursor: pointer;
+}
+
 .react-autosuggest__container {
     position: relative;
     width: 500px;
@@ -26,11 +30,6 @@
 
 .react-autosuggest__input--focused {
     outline: none;
-}
-
-.react-autosuggest__input--open {
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
 }
 
 .react-autosuggest__suggestions-container {

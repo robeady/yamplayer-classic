@@ -50,15 +50,19 @@ impl Library {
     pub fn list_tracks(&self) -> impl Iterator<Item = (TrackId, &Track)> {
         self.tracks.iter().map(|(id, t)| (*id, t))
     }
+
+    pub fn get_track(&self, id: TrackId) -> Option<&Track> {
+        self.tracks.get(&id)
+    }
 }
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
-pub struct TrackId(u64);
+pub struct TrackId(pub u64);
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Track {
-    file_path: String,
-    title: String,
-    artist: String,
-    album: String,
+    pub file_path: String,
+    pub title: String,
+    pub artist: String,
+    pub album: String,
 }

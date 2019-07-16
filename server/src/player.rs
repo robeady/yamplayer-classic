@@ -35,9 +35,9 @@ impl PlayerApp {
         }
     }
 
-    pub fn play_file(&mut self, path: &str) -> Try<()> {
+    pub fn add_to_queue(&mut self, track_file_path: &str) -> Try<()> {
         log::debug!("loading file");
-        let buffer = load_file(path)?;
+        let buffer = load_file(track_file_path)?;
         log::debug!("file loaded into memory");
         let source: Decoder<_> = Decoder::new(Cursor::new(buffer))?;
         match source.total_duration().map(|d| d.as_secs()) {
@@ -48,13 +48,15 @@ impl PlayerApp {
                 duration_secs % 60
             ),
         }
+        self.sink.append(source);
+        Ok(())
+    }
+
+    pub fn empty_queue(&mut self) {
         self.sink.stop();
         let new_sink = Sink::new(&self.device);
-        new_sink.append(source);
         new_sink.set_volume(self.sink.volume());
-        new_sink.play();
         self.sink = new_sink;
-        Ok(())
     }
 }
 

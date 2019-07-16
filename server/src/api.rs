@@ -1,6 +1,6 @@
-use crate::errors::Try;
+use crate::errors::{string_err, Try};
 use crate::file_completions::complete_file_path;
-use crate::library::{Library, Track};
+use crate::library::{Library, Track, TrackId};
 use crate::player::PlayerApp;
 use parking_lot::Mutex;
 use serde_derive::{Deserialize, Serialize};
@@ -8,11 +8,13 @@ use serde_derive::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "method", content = "params")]
 pub enum Request {
-    Play { path: String },
+    Enqueue { track_id: String },
+    Stop,
     TogglePause,
     ChangeVolume { volume: f32 },
     CompleteFilePath { prefix: String },
     GetLibrary,
+    AddToLibrary { path: String },
 }
 
 fn json_res(result: Try<impl serde::Serialize>) -> JsonResult {
@@ -37,19 +39,31 @@ pub fn handle_request(
 ) -> JsonResult {
     use Request::*;
     match request {
-        Play { ref path } => json_res(play(player, path)),
+        Enqueue { ref track_id } => json_res(enqueue(player, library, track_id)),
+        Stop => json(&stop(player)),
         TogglePause => json(&toggle_pause(player)),
         ChangeVolume { volume } => json(&set_volume(player, volume)),
         CompleteFilePath { ref prefix } => json_res(completions(prefix)),
         GetLibrary => json(&list_library(&*library.lock())),
+        AddToLibrary { path } => json_res(add_to_library(library, path)),
     }
 }
 
-fn play(state: &Mutex<PlayerApp>, path: &str) -> Try<()> {
-    log::info!("loading path {}", path);
+fn enqueue(state: &Mutex<PlayerApp>, library: &Mutex<Library>, track_id: &str) -> Try<()> {
+    let track_id = TrackId(track_id.parse()?);
+    let lib = library.lock();
+    let file_path = &lib
+        .get_track(track_id)
+        .ok_or(string_err(format!("Unknown track {}", track_id.0)))?
+        .file_path;
+    log::info!("enqueueing track {} from {}", track_id.0, file_path);
     let mut player = state.lock();
-    player.play_file(path)?;
+    player.add_to_queue(file_path)?;
     Ok(())
+}
+
+fn stop(player: &Mutex<PlayerApp>) {
+    player.lock().empty_queue();
 }
 
 fn set_volume(state: &Mutex<PlayerApp>, volume: f32) -> () {
@@ -64,12 +78,35 @@ fn toggle_pause(state: &Mutex<PlayerApp>) -> () {
 
 #[derive(Debug, Serialize)]
 struct LibraryResp<'a> {
-    tracks: Vec<&'a Track>,
+    tracks: Vec<TrackResp<'a>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct TrackResp<'a> {
+    id: String,
+    file_path: &'a str,
+    title: &'a str,
+    artist: &'a str,
+    album: &'a str,
 }
 
 fn list_library(library: &Library) -> LibraryResp {
-    let tracks = library.list_tracks().map(|(_, t)| t).collect();
+    let tracks = library
+        .list_tracks()
+        .map(|(id, t)| TrackResp {
+            id: id.0.to_string(),
+            file_path: &t.file_path,
+            title: &t.title,
+            artist: &t.artist,
+            album: &t.album,
+        })
+        .collect();
     LibraryResp { tracks }
+}
+
+fn add_to_library(library: &Mutex<Library>, track_file_path: String) -> Try<()> {
+    library.lock().add_track(track_file_path)?;
+    Ok(())
 }
 
 #[derive(Debug, Serialize, Deserialize)]

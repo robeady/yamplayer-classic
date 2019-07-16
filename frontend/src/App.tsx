@@ -27,7 +27,7 @@ const App = () => {
                             renderSuggestion={s => <div>{s}</div>}
                         />
                     </label>
-                    <button onClick={() => play(trackFilePath).then(setServerResponse)}>Play</button>
+                    <button onClick={() => stop().then(setServerResponse)}>Stop</button>
                     <button onClick={() => togglePause().then(setServerResponse)}>Toggle Pause</button>
                 </div>
                 <div>
@@ -65,15 +65,17 @@ function Library() {
     return (
         <div>
             <h2>Library</h2>
-            <ol className="trackList">{tracks.map(t => <Track track={t} />)}</ol>
+            <ol className="trackList">{tracks.map(t => <Track track={t} onClick={() => enqueue(t.id)} />)}</ol>
         </div>
     )
 }
 
-function Track(props: { track: Track }) {
+function Track(props: { track: Track; onClick: () => void }) {
     return (
         <li className="trackListRow">
-            <div className="title">{props.track.title}</div>
+            <div className="title clickable" onClick={props.onClick} title="Click to enqueue">
+                {props.track.title}
+            </div>
             <div className="artist">{props.track.artist}</div>
             <div className="album">{props.track.album}</div>
         </li>
@@ -84,6 +86,7 @@ interface Track {
     album: string
     artist: string
     title: string
+    id: string
 }
 
 async function callApi(method: string, params?: unknown) {
@@ -118,12 +121,20 @@ async function serverSetVolume(volume: number) {
     return await callWsApi("ChangeVolume", { volume })
 }
 
-async function play(track: string) {
-    return await callWsApi("Play", { path: track })
+async function addToLibrary(path: string) {
+    return await callWsApi("AddToLibrary", { path })
+}
+
+async function enqueue(trackId: string) {
+    return await callWsApi("Enqueue", { track_id: trackId })
 }
 
 async function togglePause() {
     return await callWsApi("TogglePause")
+}
+
+async function stop() {
+    return await callWsApi("Stop")
 }
 
 async function getSuggestions(prefix: string) {
