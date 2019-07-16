@@ -99,17 +99,17 @@ interface Track {
     id: string
 }
 
-async function callApi(method: string, params?: unknown) {
-    const response = await fetch("/api", {
-        method: "POST",
-        body: JSON.stringify({ method, params }),
-        headers: {
-            "Content-Type": "application/json",
-        },
-    })
-    const body = await response.json()
-    return { status: response.status, body }
-}
+// async function callApi(method: string, params?: unknown) {
+//     const response = await fetch("/api", {
+//         method: "POST",
+//         body: JSON.stringify({ method, params }),
+//         headers: {
+//             "Content-Type": "application/json",
+//         },
+//     })
+//     const body = await response.json()
+//     return { status: response.status, body }
+// }
 
 const ws = new RPCWebSocket("ws://127.0.0.1:8080/ws")
 
