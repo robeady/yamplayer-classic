@@ -2,6 +2,7 @@ use crate::library::Library;
 use crate::websocket;
 use actix_web::web;
 use actix_web::{App, HttpServer};
+use log;
 use parking_lot::Mutex;
 
 use crate::bootstrap::bootstrap_library;
@@ -17,7 +18,9 @@ pub struct State {
 pub fn run_server() -> Try<()> {
     let player_app = PlayerApp::new()?;
     let mut library = Library::new();
-    bootstrap_library(&mut library)?;
+    if let Err(e) = bootstrap_library(&mut library) {
+        log::error!("Error bootstrapping library: {}", e)
+    }
     let shared_state = web::Data::new(State {
         player: Mutex::new(player_app),
         library: Mutex::new(library),

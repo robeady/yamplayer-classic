@@ -1,6 +1,6 @@
 use crate::errors::{string_err, Try};
 use crate::file_completions::complete_file_path;
-use crate::library::{Library, Track, TrackId};
+use crate::library::{Library, TrackId};
 use crate::player::PlayerApp;
 use parking_lot::Mutex;
 use serde_derive::{Deserialize, Serialize};
