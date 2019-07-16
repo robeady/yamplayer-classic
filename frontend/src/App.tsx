@@ -4,29 +4,13 @@ import "./App.scss"
 import { RPCWebSocket } from "./websocket"
 
 const App = () => {
-    const [trackFilePath, setTrackFilePath] = useState("")
     const [serverResponse, setServerResponse] = useState({ status: 0, body: "" })
     const [volume, setVolume] = useState(1.0)
-    const [suggestions, setSuggestions] = useState([] as string[])
     return (
         <>
             <div className="App">
                 <h1>Music Player</h1>
                 <div>
-                    <label>
-                        <span>Track file path: </span>
-                        <Autosuggest
-                            suggestions={suggestions}
-                            getSuggestionValue={x => x}
-                            inputProps={{
-                                onChange: (_, e) => setTrackFilePath(e.newValue),
-                                value: trackFilePath,
-                            }}
-                            onSuggestionsFetchRequested={({ value }) => getSuggestions(value).then(setSuggestions)}
-                            onSuggestionsClearRequested={() => setSuggestions([])}
-                            renderSuggestion={s => <div>{s}</div>}
-                        />
-                    </label>
                     <button onClick={() => stop().then(setServerResponse)}>Stop</button>
                     <button onClick={() => togglePause().then(setServerResponse)}>Toggle Pause</button>
                 </div>
@@ -51,6 +35,7 @@ const App = () => {
                         Last server response: {serverResponse.status || ""} {serverResponse.body}
                     </span>
                 </div>
+                <AddToLibrary />
                 <Library />
             </div>
         </>
@@ -66,6 +51,31 @@ function Library() {
         <div>
             <h2>Library</h2>
             <ol className="trackList">{tracks.map(t => <Track track={t} onClick={() => enqueue(t.id)} />)}</ol>
+        </div>
+    )
+}
+
+function AddToLibrary() {
+    const [trackFilePath, setTrackFilePath] = useState("")
+    const [suggestions, setSuggestions] = useState([] as string[])
+    return (
+        <div>
+            <h2>Add track to library</h2>
+            <label>
+                <span>Track file path: </span>
+                <Autosuggest
+                    suggestions={suggestions}
+                    getSuggestionValue={x => x}
+                    inputProps={{
+                        onChange: (_, e) => setTrackFilePath(e.newValue),
+                        value: trackFilePath,
+                    }}
+                    onSuggestionsFetchRequested={({ value }) => getSuggestions(value).then(setSuggestions)}
+                    onSuggestionsClearRequested={() => setSuggestions([])}
+                    renderSuggestion={s => <div>{s}</div>}
+                />
+            </label>
+            <button onClick={() => addToLibrary(trackFilePath)}>Add</button>
         </div>
     )
 }
@@ -138,12 +148,19 @@ async function stop() {
 }
 
 async function getSuggestions(prefix: string) {
-    const response = await callWsApi("CompleteFilePath", { prefix })
-    if (response.status === 200) {
+    try {
+        const response = await callWsApi("CompleteFilePath", { prefix })
         return response.body.completions as string[]
-    } else {
+    } catch (e) {
+        console.error(e)
         return []
     }
+
+    // if (response.status === 200) {
+    //     return response.body.completions as string[]
+    // } else {
+    //     return []
+    // }
 }
 
 export default App
