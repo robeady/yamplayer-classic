@@ -1,3 +1,5 @@
+use crate::api::Event::{PlaybackPaused, PlaybackResumed, VolumeChanged};
+use crate::api::EventSink;
 use crate::errors::{string_err, Try};
 use log;
 use rodio::decoder::Decoder;
@@ -9,14 +11,19 @@ use std::sync::Arc;
 pub struct PlayerApp {
     device: Arc<Device>,
     sink: Sink,
+    event_sink: Arc<EventSink>,
 }
 
 impl PlayerApp {
-    pub fn new() -> Try<PlayerApp> {
+    pub fn new(event_sink: Arc<EventSink>) -> Try<PlayerApp> {
         let device =
             Arc::new(rodio::default_output_device().ok_or(string_err("no output device"))?);
         let sink = Sink::new(&device);
-        Ok(PlayerApp { device, sink })
+        Ok(PlayerApp {
+            device,
+            sink,
+            event_sink,
+        })
     }
 
     pub fn volume(&self) -> f32 {
@@ -24,14 +31,18 @@ impl PlayerApp {
     }
 
     pub fn set_volume(&mut self, volume: f32) {
-        self.sink.set_volume(volume)
+        self.sink.set_volume(volume);
+        self.event_sink
+            .broadcast(&VolumeChanged { new_volume: volume })
     }
 
     pub fn toggle_pause(&mut self) {
         if self.sink.is_paused() {
-            self.sink.play()
+            self.sink.play();
+            self.event_sink.broadcast(&PlaybackResumed)
         } else {
-            self.sink.pause()
+            self.sink.pause();
+            self.event_sink.broadcast(&PlaybackPaused)
         }
     }
 
@@ -48,6 +59,8 @@ impl PlayerApp {
                 duration_secs % 60
             ),
         }
+        // for now we just replace what's currently playing
+        self.empty_queue();
         self.sink.append(source);
         Ok(())
     }

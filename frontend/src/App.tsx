@@ -111,7 +111,7 @@ interface Track {
 //     return { status: response.status, body }
 // }
 
-const ws = new RPCWebSocket("ws://127.0.0.1:8080/ws")
+const ws = new RPCWebSocket("ws://127.0.0.1:8080/ws", p => console.log(p))
 
 async function callWsApi(method: string, params?: unknown) {
     const response = await ws.query({ method, params })

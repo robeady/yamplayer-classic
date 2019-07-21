@@ -1,25 +1,21 @@
 use crate::api;
-use crate::server::State;
-use actix_web::dev::HttpResponseBuilder;
-use actix_web::web::{Data, Json};
-use actix_web::{post, HttpResponse};
+use std::sync::Arc;
+use warp::http::header::CONTENT_TYPE;
+use warp::http::status::StatusCode;
+use warp::http::Response;
+use warp::Reply;
 
-#[post("/api")]
-pub fn api_handler(shared_state: Data<State>, request: Json<api::Request>) -> HttpResponse {
-    to_http_response(api::handle_request(
-        &shared_state.player,
-        &shared_state.library,
-        request.0,
-    ))
+pub fn api_handler(app: Arc<api::App>, request: api::Request) -> impl Reply {
+    to_http_response(app.handle_request(&request))
 }
 
-fn to_http_response(json_result: api::JsonResult) -> HttpResponse {
-    use http::status::StatusCode;
-    let (status, body) = match json_result {
-        Ok(s) => (StatusCode::OK, s),
-        Err(s) => (StatusCode::INTERNAL_SERVER_ERROR, s),
+fn to_http_response(result: api::Response) -> impl Reply {
+    let (status, body) = match result {
+        Ok(p) => (StatusCode::OK, p.json),
+        Err(p) => (StatusCode::INTERNAL_SERVER_ERROR, p.json),
     };
-    HttpResponseBuilder::new(status)
-        .content_type("application/json")
+    Response::builder()
+        .header(CONTENT_TYPE, "application/json")
+        .status(status)
         .body(body)
 }

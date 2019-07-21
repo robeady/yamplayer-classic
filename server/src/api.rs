@@ -1,9 +1,18 @@
-use crate::errors::{string_err, Try};
+use crate::errors::{string_err, Erro};
 use crate::file_completions::complete_file_path;
-use crate::library::{Library, TrackId};
+use crate::library::{self, Library, TrackId};
 use crate::player::PlayerApp;
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
 use serde_derive::{Deserialize, Serialize};
+use slotmap::{DenseSlotMap, Key};
+use std::convert::Into;
+use std::sync::Arc;
+
+pub struct App {
+    pub player: Mutex<PlayerApp>,
+    pub library: Mutex<Library>,
+    pub event_sink: Arc<EventSink>,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "method", content = "params")]
@@ -17,96 +26,129 @@ pub enum Request {
     AddToLibrary { path: String },
 }
 
-fn json_res(result: Try<impl serde::Serialize>) -> JsonResult {
-    match result {
-        // TODO: think about what to do if serialisation fails. maybe a special Err?
-        Ok(ref ok) => Ok(serde_json::to_string(ok).unwrap()),
-        Err(ref err) => Err(serde_json::to_string(err).unwrap()),
+impl App {
+    pub fn handle_request(&self, request: &Request) -> Response {
+        use Request::*;
+        match request {
+            Enqueue { track_id } => self.enqueue(track_id),
+            Stop => self.stop(),
+            TogglePause => self.toggle_pause(),
+            ChangeVolume { volume } => self.set_volume(*volume),
+            CompleteFilePath { prefix } => self.completions(prefix),
+            GetLibrary => self.list_library(),
+            AddToLibrary { path } => self.add_to_library(path.clone()),
+        }
+    }
+
+    fn enqueue(&self, track_id: &str) -> Response {
+        let track_id = TrackId(
+            track_id
+                .parse()
+                .map_err(|_| string_err(format!("Invalid track ID {}", track_id)))?,
+        );
+        let lib = self.library.lock();
+        let track = lib
+            .get_track(track_id)
+            .ok_or_else(|| string_err(format!("Unknown track {}", track_id.0)))?;
+        log::info!("enqueueing track {} from {}", track_id.0, track.file_path);
+        let mut player = self.player.lock();
+        player.add_to_queue(&track.file_path)?;
+        // TODO: this event should come from somewhere else
+        self.event_sink.broadcast(&Event::TrackChanged {
+            track: (track_id, track).into(),
+        });
+        done()
+    }
+
+    fn list_library(&self) -> Response {
+        let lib = self.library.lock();
+        let tracks = lib.list_tracks().map(Into::into).collect();
+        ok(&LibraryListing { tracks })
+    }
+
+    fn add_to_library(&self, track_file_path: String) -> Response {
+        self.library.lock().add_track(track_file_path)?;
+        done()
+    }
+
+    fn stop(&self) -> Response {
+        self.player.lock().empty_queue();
+        done()
+    }
+
+    fn set_volume(&self, volume: f32) -> Response {
+        let mut player = self.player.lock();
+        player.set_volume(volume);
+        done()
+    }
+
+    fn toggle_pause(&self) -> Response {
+        let mut player = self.player.lock();
+        player.toggle_pause();
+        done()
+    }
+
+    fn completions(&self, prefix: &str) -> Response {
+        ok(&CompleteFilePathResp {
+            completions: complete_file_path(prefix)?,
+        })
     }
 }
 
-fn json(value: &impl serde::Serialize) -> JsonResult {
-    // TODO: think about what to do if serialisation fails. maybe a special Err?
-    Ok(serde_json::to_string(value).unwrap())
-}
-
-pub type JsonResult = std::result::Result<String, String>;
-
-pub fn handle_request(
-    player: &Mutex<PlayerApp>,
-    library: &Mutex<Library>,
-    request: Request,
-) -> JsonResult {
-    use Request::*;
-    match request {
-        Enqueue { ref track_id } => json_res(enqueue(player, library, track_id)),
-        Stop => json(&stop(player)),
-        TogglePause => json(&toggle_pause(player)),
-        ChangeVolume { volume } => json(&set_volume(player, volume)),
-        CompleteFilePath { ref prefix } => json_res(completions(prefix)),
-        GetLibrary => json(&list_library(&*library.lock())),
-        AddToLibrary { path } => json_res(add_to_library(library, path)),
+impl<'a> From<(TrackId, &'a library::Track)> for Track<'a> {
+    fn from(t: (TrackId, &'a library::Track)) -> Self {
+        let (id, track) = t;
+        Track {
+            id: id.0.to_string(),
+            file_path: &track.file_path,
+            title: &track.title,
+            artist: &track.artist,
+            album: &track.album,
+        }
     }
-}
-
-fn enqueue(state: &Mutex<PlayerApp>, library: &Mutex<Library>, track_id: &str) -> Try<()> {
-    let track_id = TrackId(track_id.parse()?);
-    let lib = library.lock();
-    let file_path = &lib
-        .get_track(track_id)
-        .ok_or(string_err(format!("Unknown track {}", track_id.0)))?
-        .file_path;
-    log::info!("enqueueing track {} from {}", track_id.0, file_path);
-    let mut player = state.lock();
-    player.add_to_queue(file_path)?;
-    Ok(())
-}
-
-fn stop(player: &Mutex<PlayerApp>) {
-    player.lock().empty_queue();
-}
-
-fn set_volume(state: &Mutex<PlayerApp>, volume: f32) -> () {
-    let mut player = state.lock();
-    player.set_volume(volume);
-}
-
-fn toggle_pause(state: &Mutex<PlayerApp>) -> () {
-    let mut player = state.lock();
-    player.toggle_pause();
 }
 
 #[derive(Debug, Serialize)]
-struct LibraryResp<'a> {
-    tracks: Vec<TrackResp<'a>>,
+struct LibraryListing<'a> {
+    tracks: Vec<Track<'a>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct TrackResp<'a> {
-    id: String,
-    file_path: &'a str,
-    title: &'a str,
-    artist: &'a str,
-    album: &'a str,
+pub struct Track<'a> {
+    pub id: String,
+    pub file_path: &'a str,
+    pub title: &'a str,
+    pub artist: &'a str,
+    pub album: &'a str,
 }
 
-fn list_library(library: &Library) -> LibraryResp {
-    let tracks = library
-        .list_tracks()
-        .map(|(id, t)| TrackResp {
-            id: id.0.to_string(),
-            file_path: &t.file_path,
-            title: &t.title,
-            artist: &t.artist,
-            album: &t.album,
-        })
-        .collect();
-    LibraryResp { tracks }
+#[derive(Debug, Clone)]
+pub struct Payload {
+    pub json: String,
 }
 
-fn add_to_library(library: &Mutex<Library>, track_file_path: String) -> Try<()> {
-    library.lock().add_track(track_file_path)?;
-    Ok(())
+fn payload(data: &impl serde::Serialize) -> Payload {
+    Payload {
+        json: serde_json::to_string(data).expect("payload serialization failed"),
+    }
+}
+
+impl From<Erro> for Payload {
+    fn from(e: Erro) -> Self {
+        match e {
+            Erro::StringError(s) => payload(&s),
+        }
+    }
+}
+
+pub type Response = Result<Payload, Payload>;
+
+fn ok(data: &impl serde::Serialize) -> Response {
+    Ok(payload(data))
+}
+
+fn done() -> Response {
+    ok(&())
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -114,8 +156,57 @@ struct CompleteFilePathResp {
     completions: Vec<String>,
 }
 
-fn completions(prefix: &str) -> Try<CompleteFilePathResp> {
-    Ok(CompleteFilePathResp {
-        completions: complete_file_path(prefix)?,
-    })
+#[derive(Serialize)]
+pub enum Event<'a> {
+    VolumeChanged { new_volume: f32 },
+    PlaybackPaused,
+    PlaybackResumed,
+    TrackChanged { track: Track<'a> },
 }
+
+pub trait EventDestination: Send + Sync {
+    fn send_event(&self, payload: &Payload);
+}
+
+pub trait ResponseDestination {
+    fn send_response(&self, request_id: String, response: Response);
+}
+
+struct EventCollector {
+    payloads: Mutex<Vec<Payload>>,
+}
+
+impl EventDestination for EventCollector {
+    fn send_event(&self, payload: &Payload) {
+        self.payloads.lock().push(payload.clone())
+    }
+}
+
+pub struct EventSink {
+    destinations: RwLock<DenseSlotMap<Box<dyn EventDestination>>>,
+}
+
+impl EventSink {
+    pub fn empty() -> EventSink {
+        EventSink {
+            destinations: RwLock::new(DenseSlotMap::new()),
+        }
+    }
+
+    pub fn broadcast(&self, event: &Event) {
+        let payload = payload(event);
+        for (_, dest) in self.destinations.read().iter() {
+            dest.send_event(&payload)
+        }
+    }
+
+    pub fn add_destination(&self, destination: Box<dyn EventDestination>) -> DestinationKey {
+        DestinationKey(self.destinations.write().insert(destination))
+    }
+
+    pub fn remove_destination(&self, key: DestinationKey) -> Option<Box<dyn EventDestination>> {
+        self.destinations.write().remove(key.0)
+    }
+}
+
+pub struct DestinationKey(Key);

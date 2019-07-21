@@ -1,15 +1,19 @@
+use crate::api::EventSink;
 use crate::errors::{string_err, Try};
 use serde_derive::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 pub struct Library {
     tracks: BTreeMap<TrackId, Track>,
+    event_sink: Arc<EventSink>,
 }
 
 impl Library {
-    pub fn new() -> Library {
+    pub fn new(event_sink: Arc<EventSink>) -> Library {
         Library {
             tracks: BTreeMap::new(),
+            event_sink,
         }
     }
 
@@ -35,15 +39,15 @@ impl Library {
         let artist = tag("ARTIST")?;
         let album = tag("ALBUM")?;
         let track_id = self.next_track_id();
-        self.tracks.insert(
-            track_id,
-            Track {
-                title,
-                artist,
-                album,
-                file_path,
-            },
-        );
+        let track = Track {
+            title,
+            artist,
+            album,
+            file_path,
+        };
+
+        self.tracks.insert(track_id, track);
+
         Ok(track_id)
     }
 
