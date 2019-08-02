@@ -109,8 +109,19 @@ const PlaybackControls = (props: {
 )
 
 const VolumeControl = (props: { volume: number; setVolume: (volume: number) => void }) => (
-    <div className="volumeSlider">
-        <Slider min={0} max={1} step={0.01} value={props.volume} onChange={(_, v) => props.setVolume(v as number)} />
+    <div className="volume">
+        <div className="volumeButton">
+            {props.volume <= 0 ? <VolumeMute /> : props.volume <= 0.5 ? <VolumeDown /> : <VolumeUp />}
+        </div>
+        <div className="volumeSlider">
+            <Slider
+                min={0}
+                max={1}
+                step={0.01}
+                value={props.volume}
+                onChange={(_, v) => props.setVolume(v as number)}
+            />
+        </div>
     </div>
 )
 const QueueControls = () => <div>QueueControls</div>
