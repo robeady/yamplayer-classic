@@ -1,89 +1,50 @@
-import React, { useState, useEffect } from "react"
-import Autosuggest from "react-autosuggest"
+import React from "react"
+import PlayArrow from "@material-ui/icons/PlayArrow"
+import Pause from "@material-ui/icons/Pause"
+import SkipNext from "@material-ui/icons/SkipNext"
+import SkipPrevious from "@material-ui/icons/SkipPrevious"
+import VolumeDown from "@material-ui/icons/VolumeDown"
+import VolumeUp from "@material-ui/icons/VolumeUp"
+import VolumeMute from "@material-ui/icons/VolumeMute"
+import Slider from "@material-ui/core/Slider"
 import "./App.scss"
-import { RPCWebSocket } from "./websocket"
+import { observer } from "mobx-react-lite"
+import { usePlayback } from "./backend/Playback"
+import { Track } from "./Model"
+import { useLibrary } from "./backend/Library"
 
-const App = () => {
-    const [serverResponse, setServerResponse] = useState({ status: 0, body: "" })
-    const [volume, setVolume] = useState(1.0)
-    return (
-        <>
-            <div className="App">
-                <h1>Music Player</h1>
-                <div>
-                    <button onClick={() => stop().then(setServerResponse)}>Stop</button>
-                    <button onClick={() => togglePause().then(setServerResponse)}>Toggle Pause</button>
-                </div>
-                <div>
-                    <label>
-                        <span>Volume: </span>
-                        <input
-                            type="number"
-                            onChange={e => {
-                                setVolume(e.target.valueAsNumber)
-                                serverSetVolume(e.target.valueAsNumber).then(setServerResponse)
-                            }}
-                            min="0.0"
-                            max="1.0"
-                            step="0.1"
-                            value={volume}
-                        />
-                    </label>
-                </div>
-                <div>
-                    <span>
-                        Last server response: {serverResponse.status || ""} {serverResponse.body}
-                    </span>
-                </div>
-                <AddToLibrary />
-                <Library />
-            </div>
-        </>
-    )
-}
+const App = () => (
+    <div className="player">
+        <NowPlaying />
+        <LeftNav />
+        <Main />
+    </div>
+)
 
-function Library() {
-    const [tracks, setTracks] = useState([] as Track[])
-    useEffect(() => {
-        getTracksInLibrary().then(setTracks)
-    }, [])
+const Main = () => (
+    <main className="main">
+        <TrackList />
+    </main>
+)
+
+const TrackList = observer(() => {
+    const library = useLibrary()
+    const playback = usePlayback()
     return (
         <div>
-            <h2>Library</h2>
-            <ol className="trackList">{tracks.map(t => <Track track={t} onClick={() => enqueue(t.id)} />)}</ol>
+            <ol className="trackList">
+                {Object.values(library.tracks || {}).map(t => (
+                    <TrackRow track={t} enqueue={() => playback.enqueue(t.id)} />
+                ))}
+            </ol>
         </div>
     )
-}
+})
 
-function AddToLibrary() {
-    const [trackFilePath, setTrackFilePath] = useState("")
-    const [suggestions, setSuggestions] = useState([] as string[])
+function TrackRow(props: { track: Track; enqueue: () => void }) {
     return (
-        <div>
-            <h2>Add track to library</h2>
-            <label>
-                <span>Track file path: </span>
-                <Autosuggest
-                    suggestions={suggestions}
-                    getSuggestionValue={x => x}
-                    inputProps={{
-                        onChange: (_, e) => setTrackFilePath(e.newValue),
-                        value: trackFilePath,
-                    }}
-                    onSuggestionsFetchRequested={({ value }) => getSuggestions(value).then(setSuggestions)}
-                    onSuggestionsClearRequested={() => setSuggestions([])}
-                    renderSuggestion={s => <div>{s}</div>}
-                />
-            </label>
-            <button onClick={() => addToLibrary(trackFilePath)}>Add</button>
-        </div>
-    )
-}
-
-function Track(props: { track: Track; onClick: () => void }) {
-    return (
-        <li className="trackListRow">
-            <div className="title clickable" onClick={props.onClick} title="Click to enqueue">
+        <li className="trackListRow" key={props.track.id}>
+            <div className="title clickable" onClick={props.enqueue} title="Click to enqueue">
                 {props.track.title}
             </div>
             <div className="artist">{props.track.artist}</div>
@@ -92,75 +53,66 @@ function Track(props: { track: Track; onClick: () => void }) {
     )
 }
 
-interface Track {
-    album: string
-    artist: string
-    title: string
-    id: string
-}
+const LeftNav = () => <nav className="leftNav">navigation links go here</nav>
 
-// async function callApi(method: string, params?: unknown) {
-//     const response = await fetch("/api", {
-//         method: "POST",
-//         body: JSON.stringify({ method, params }),
-//         headers: {
-//             "Content-Type": "application/json",
-//         },
-//     })
-//     const body = await response.json()
-//     return { status: response.status, body }
-// }
+const NowPlaying = observer(() => {
+    const pb = usePlayback()
+    return (
+        <header className="nowPlaying">
+            <div className="controls">
+                <TrackSummary
+                    art="https://i.scdn.co/image/93852b7922b792c49e9198e09314c6b885eb1ed2"
+                    artist={(pb.currentTrack && pb.currentTrack.artist) || ""}
+                    track={(pb.currentTrack && pb.currentTrack.title) || ""}
+                />
+                <PlaybackControls
+                    playing={pb.playing}
+                    onPlayPause={() => pb.togglePause()}
+                    onPrev={() => {}}
+                    onNext={() => {}}
+                />
+                <VolumeControl volume={pb.volume} setVolume={v => pb.changeVolume(v)} />
+                <QueueControls />
+            </div>
+            <ProgressBar />
+        </header>
+    )
+})
 
-const ws = new RPCWebSocket("ws://127.0.0.1:8080/ws", p => console.log(p))
+const ProgressBar = () => <div>---------------</div>
 
-async function callWsApi(method: string, params?: unknown) {
-    const response = await ws.query({ method, params })
-    return { status: 200, body: response as any }
-}
+const TrackSummary = (props: { track: string; artist: string; art: string }) => (
+    <div className="trackSummary">
+        <img src={props.art} height={70} />
+        <div className="trackDescription">
+            <span>{props.track}</span>
+            <span>{props.artist}</span>
+        </div>
+    </div>
+)
 
-async function getTracksInLibrary() {
-    const response = await callWsApi("GetLibrary")
-    if (response.status === 200) {
-        return response.body.tracks as Track[]
-    } else {
-        return []
-    }
-}
+const PlaybackControls = (props: {
+    playing: boolean
+    onPlayPause: () => void
+    onPrev: () => void
+    onNext: () => void
+}) => (
+    <div className="playbackControls">
+        <SkipPrevious className="prevButton" />
+        {props.playing ? (
+            <Pause onClick={props.onPlayPause} className="playPauseButton" />
+        ) : (
+            <PlayArrow onClick={props.onPlayPause} className="playPauseButton" />
+        )}
+        <SkipNext className="nextButton" />
+    </div>
+)
 
-async function serverSetVolume(volume: number) {
-    return await callWsApi("ChangeVolume", { volume })
-}
-
-async function addToLibrary(path: string) {
-    return await callWsApi("AddToLibrary", { path })
-}
-
-async function enqueue(trackId: string) {
-    return await callWsApi("Enqueue", { track_id: trackId })
-}
-
-async function togglePause() {
-    return await callWsApi("TogglePause")
-}
-
-async function stop() {
-    return await callWsApi("Stop")
-}
-
-async function getSuggestions(prefix: string) {
-    try {
-        const response = await callWsApi("CompleteFilePath", { prefix })
-        return response.body.completions as string[]
-    } catch (e) {
-        console.error(e)
-        return []
-    }
-
-    // if (response.status === 200) {
-    //     return response.body.completions as string[]
-    // } else {
-    //     return []
-    // }
-}
+const VolumeControl = (props: { volume: number; setVolume: (volume: number) => void }) => (
+    <div className="volumeSlider">
+        <Slider min={0} max={1} step={0.01} value={props.volume} onChange={(_, v) => props.setVolume(v as number)} />
+    </div>
+)
+const QueueControls = () => <div>QueueControls</div>
 
 export default App

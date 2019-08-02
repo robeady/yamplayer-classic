@@ -15,7 +15,7 @@ pub struct App {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(tag = "method", content = "params")]
+#[serde(tag = "type", content = "args")]
 pub enum Request {
     Enqueue { track_id: String },
     Stop,
@@ -24,6 +24,7 @@ pub enum Request {
     CompleteFilePath { prefix: String },
     GetLibrary,
     AddToLibrary { path: String },
+    GetPlaybackState,
 }
 
 impl App {
@@ -37,6 +38,7 @@ impl App {
             CompleteFilePath { prefix } => self.completions(prefix),
             GetLibrary => self.list_library(),
             AddToLibrary { path } => self.add_to_library(path.clone()),
+            GetPlaybackState => self.get_playback_state(),
         }
     }
 
@@ -88,11 +90,25 @@ impl App {
         done()
     }
 
+    fn get_playback_state(&self) -> Response {
+        let player = self.player.lock();
+        ok(&PlaybackState {
+            playing: !player.paused(),
+            volume: player.volume(),
+        })
+    }
+
     fn completions(&self, prefix: &str) -> Response {
         ok(&CompleteFilePathResp {
             completions: complete_file_path(prefix)?,
         })
     }
+}
+
+#[derive(Debug, Serialize)]
+struct PlaybackState {
+    playing: bool,
+    volume: f32,
 }
 
 impl<'a> From<(TrackId, &'a library::Track)> for Track<'a> {
@@ -157,6 +173,7 @@ struct CompleteFilePathResp {
 }
 
 #[derive(Serialize)]
+#[serde(tag = "type", content = "args")]
 pub enum Event<'a> {
     VolumeChanged { new_volume: f32 },
     PlaybackPaused,

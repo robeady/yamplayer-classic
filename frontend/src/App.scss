@@ -1,79 +1,73 @@
-.App {
-    text-align: center;
-    padding-top: 5rem;
-    width: 500px;
-    margin: 0 auto;
-}
-
 .clickable {
     cursor: pointer;
 }
 
-.react-autosuggest__container {
-    position: relative;
-    width: 500px;
-    text-align: left;
+.main {
+    grid-area: main;
+    padding: 2rem;
 }
 
-.react-autosuggest__input,
-.react-autosuggest__suggestion {
-    padding: 5px;
-    font-size: 14px;
-    font-family: Arial, Helvetica, sans-serif;
-    box-sizing: border-box;
+.leftNav {
+    grid-area: leftNav;
+    background: #eee;
 }
 
-.react-autosuggest__input {
-    border: 1px solid #aaa;
-    width: 500px;
+.nowPlaying {
+    grid-area: nowPlaying;
+    background: #ddd;
 }
 
-.react-autosuggest__input--focused {
-    outline: none;
+.player {
+    height: 100vh;
+    display: grid;
+    grid-template-areas:
+        "nowPlaying nowPlaying"
+        "leftNav main";
+    grid-template-columns: 200px auto;
+    grid-template-rows: 100px auto;
 }
 
-.react-autosuggest__suggestions-container {
-    display: none;
+.controls {
+    display: flex;
+    padding: 1rem;
+    justify-content: space-between;
 }
 
-.react-autosuggest__suggestions-container--open {
-    display: block;
-    position: absolute;
-    width: 498px;
-    background: white;
-    border: 1px solid #aaa;
-    z-index: 2;
+.playbackControls {
+    .nextButton,
+    .prevButton {
+        font-size: 2rem;
+    }
+    .playPauseButton {
+        font-size: 3rem;
+    }
 }
-
-.react-autosuggest__suggestions-list {
-    margin: 0;
-    padding: 0;
-    list-style-type: none;
-}
-
-.react-autosuggest__suggestion {
-    cursor: pointer;
-}
-
-.react-autosuggest__suggestion--highlighted {
-    background-color: #ddd;
+.volumeSlider {
+    width: 6rem;
 }
 
 .trackList {
+    margin: 0;
     padding-left: 0;
 }
 
 .trackListRow {
+    padding: 0.2rem;
     display: flex;
-    // justify-content: space-between;
     text-align: left;
     .title {
         flex-basis: 40%;
     }
     div {
         flex-basis: 30%;
-        // flex-grow: 1;
-        // display: inline-block;
-        // width: 33%;
+    }
+}
+
+.trackSummary {
+    display: flex;
+    .trackDescription {
+        display: flex;
+        flex-direction: column;
+        padding-left: 0.5rem;
     }
 }

@@ -46,6 +46,10 @@ impl PlayerApp {
         }
     }
 
+    pub fn paused(&self) -> bool {
+        self.sink.is_paused()
+    }
+
     pub fn add_to_queue(&mut self, track_file_path: &str) -> Try<()> {
         log::debug!("loading file");
         let buffer = load_file(track_file_path)?;
