@@ -71,7 +71,7 @@ const NowPlaying = observer(() => {
                     onPrev={() => {}}
                     onNext={() => {}}
                 />
-                <VolumeControl volume={pb.volume} setVolume={v => pb.changeVolume(v)} />
+                <VolumeControl muted={pb.muted} volume={pb.volume} setVolume={pb.changeVolume} />
                 <QueueControls />
             </div>
             <ProgressBar />
@@ -83,7 +83,7 @@ const ProgressBar = () => <div>---------------</div>
 
 const TrackSummary = (props: { track: string; artist: string; art: string }) => (
     <div className="trackSummary">
-        <img src={props.art} height={70} />
+        <img src={props.art} height={70} alt="" />
         <div className="trackDescription">
             <span>{props.track}</span>
             <span>{props.artist}</span>
@@ -108,22 +108,34 @@ const PlaybackControls = (props: {
     </div>
 )
 
-const VolumeControl = (props: { volume: number; setVolume: (volume: number) => void }) => (
-    <div className="volume">
-        <div className="volumeButton">
-            {props.volume <= 0 ? <VolumeMute /> : props.volume <= 0.5 ? <VolumeDown /> : <VolumeUp />}
+const VolumeControl = (props: {
+    muted: boolean
+    volume: number
+    setVolume: (muted: boolean, volume?: number) => void
+}) => {
+    return (
+        <div className="volume">
+            <div className="volumeButton">
+                {props.volume <= 0 || props.muted ? (
+                    <VolumeMute onClick={() => props.setVolume(false)} />
+                ) : props.volume <= 0.5 ? (
+                    <VolumeDown onClick={() => props.setVolume(true)} />
+                ) : (
+                    <VolumeUp onClick={() => props.setVolume(true)} />
+                )}
+            </div>
+            <div className="volumeSlider">
+                <Slider
+                    min={0}
+                    max={1}
+                    step={0.01}
+                    value={props.muted ? 0 : props.volume}
+                    onChange={(_, v) => props.setVolume(false, v as number)}
+                />
+            </div>
         </div>
-        <div className="volumeSlider">
-            <Slider
-                min={0}
-                max={1}
-                step={0.01}
-                value={props.volume}
-                onChange={(_, v) => props.setVolume(v as number)}
-            />
-        </div>
-    </div>
-)
+    )
+}
 const QueueControls = () => <div>QueueControls</div>
 
 export default App

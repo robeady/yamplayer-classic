@@ -12,6 +12,8 @@ pub struct PlayerApp {
     device: Arc<Device>,
     sink: Sink,
     event_sink: Arc<EventSink>,
+    unmuted_volume: f32,
+    muted: bool,
 }
 
 impl PlayerApp {
@@ -23,17 +25,39 @@ impl PlayerApp {
             device,
             sink,
             event_sink,
+            unmuted_volume: 0.5,
+            muted: false,
         })
     }
 
-    pub fn volume(&self) -> f32 {
-        self.sink.volume()
+    pub fn unmuted_volume(&self) -> f32 {
+        self.unmuted_volume
     }
 
-    pub fn set_volume(&mut self, volume: f32) {
-        self.sink.set_volume(volume);
-        self.event_sink
-            .broadcast(&VolumeChanged { new_volume: volume })
+    pub fn muted(&self) -> bool {
+        self.muted
+    }
+
+    pub fn update_volume(&mut self, volume: Option<f32>, muted: Option<bool>) {
+        if let Some(new_volume) = volume {
+            self.unmuted_volume = new_volume;
+        }
+        if let Some(new_muted) = muted {
+            self.muted = new_muted;
+        }
+        self.update_sink_volume();
+        self.event_sink.broadcast(&VolumeChanged {
+            muted: self.muted,
+            volume: self.unmuted_volume,
+        })
+    }
+
+    fn update_sink_volume(&mut self) {
+        if self.muted {
+            self.sink.set_volume(0.0)
+        } else {
+            self.sink.set_volume(self.unmuted_volume)
+        }
     }
 
     pub fn toggle_pause(&mut self) {

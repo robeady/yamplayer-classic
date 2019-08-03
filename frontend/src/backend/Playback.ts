@@ -18,7 +18,8 @@ export class Playback {
     private handleEvent = (e: ServerEvent) => {
         switch (e.type) {
             case "VolumeChanged":
-                this.volume = e.args.new_volume
+                this.volume = e.args.volume
+                this.muted = e.args.muted
                 return
             case "PlaybackPaused":
                 this.playing = false
@@ -33,10 +34,11 @@ export class Playback {
     }
 
     @observable volume = 0.5
+    @observable muted = false
     @observable playing = false
     @observable currentTrack: Track | null = null
 
-    changeVolume = (newVolume: number) => this.serverApi.request("ChangeVolume", { volume: newVolume })
+    changeVolume = (muted: boolean, volume?: number) => this.serverApi.request("ChangeVolume", { muted, volume })
 
     togglePause = () => this.serverApi.request("TogglePause")
 

@@ -6,7 +6,7 @@ interface ServerRPCApi {
     (type: "Enqueue", args: { track_id: string }): Promise<void>
     (type: "Stop"): Promise<void>
     (type: "TogglePause"): Promise<void>
-    (type: "ChangeVolume", args: { volume: number }): Promise<void>
+    (type: "ChangeVolume", args: { muted?: boolean; volume?: number }): Promise<void>
     (type: "CompleteFilePath", args: { prefix: string }): Promise<void>
     (type: "GetLibrary"): Promise<{ tracks: Track[] }>
     (type: "AddToLibrary", args: { path: string }): Promise<void>
@@ -16,7 +16,7 @@ interface ServerRPCApi {
 type ServerEventHandler = (e: ServerEvent) => void
 
 export type ServerEvent =
-    | { type: "VolumeChanged"; args: { new_volume: number } }
+    | { type: "VolumeChanged"; args: { muted: boolean; volume: number } }
     | { type: "PlaybackPaused" }
     | { type: "PlaybackResumed" }
     | { type: "TrackChanged"; args: { track: Track } }

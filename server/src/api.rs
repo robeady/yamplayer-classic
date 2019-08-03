@@ -17,13 +17,22 @@ pub struct App {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type", content = "args")]
 pub enum Request {
-    Enqueue { track_id: String },
+    Enqueue {
+        track_id: String,
+    },
     Stop,
     TogglePause,
-    ChangeVolume { volume: f32 },
-    CompleteFilePath { prefix: String },
+    ChangeVolume {
+        volume: Option<f32>,
+        muted: Option<bool>,
+    },
+    CompleteFilePath {
+        prefix: String,
+    },
     GetLibrary,
-    AddToLibrary { path: String },
+    AddToLibrary {
+        path: String,
+    },
     GetPlaybackState,
 }
 
@@ -34,7 +43,7 @@ impl App {
             Enqueue { track_id } => self.enqueue(track_id),
             Stop => self.stop(),
             TogglePause => self.toggle_pause(),
-            ChangeVolume { volume } => self.set_volume(*volume),
+            ChangeVolume { volume, muted } => self.set_volume(*volume, *muted),
             CompleteFilePath { prefix } => self.completions(prefix),
             GetLibrary => self.list_library(),
             AddToLibrary { path } => self.add_to_library(path.clone()),
@@ -78,9 +87,9 @@ impl App {
         done()
     }
 
-    fn set_volume(&self, volume: f32) -> Response {
+    fn set_volume(&self, volume: Option<f32>, muted: Option<bool>) -> Response {
         let mut player = self.player.lock();
-        player.set_volume(volume);
+        player.update_volume(volume, muted);
         done()
     }
 
@@ -94,7 +103,8 @@ impl App {
         let player = self.player.lock();
         ok(&PlaybackState {
             playing: !player.paused(),
-            volume: player.volume(),
+            volume: player.unmuted_volume(),
+            muted: player.muted(),
         })
     }
 
@@ -109,6 +119,7 @@ impl App {
 struct PlaybackState {
     playing: bool,
     volume: f32,
+    muted: bool,
 }
 
 impl<'a> From<(TrackId, &'a library::Track)> for Track<'a> {
@@ -175,7 +186,7 @@ struct CompleteFilePathResp {
 #[derive(Serialize)]
 #[serde(tag = "type", content = "args")]
 pub enum Event<'a> {
-    VolumeChanged { new_volume: f32 },
+    VolumeChanged { muted: bool, volume: f32 },
     PlaybackPaused,
     PlaybackResumed,
     TrackChanged { track: Track<'a> },
