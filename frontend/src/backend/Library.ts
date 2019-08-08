@@ -1,7 +1,7 @@
 import { observable } from "mobx"
 import { createContext, useContext } from "react"
 import { Track } from "../Model"
-import { ServerApi, serverApi, ServerEvent } from "./ServerApi"
+import { ServerApi, globalServerApi, ServerEvent } from "./ServerApi"
 import { keyBy } from "lodash"
 
 export class Library {
@@ -15,6 +15,6 @@ export class Library {
     @observable tracks: { [trackId: string]: Track } | null = null
 }
 
-export const library = new Library(serverApi)
+export const library = new Library(globalServerApi)
 const libraryContext = createContext(library)
 export const useLibrary = () => useContext(libraryContext)

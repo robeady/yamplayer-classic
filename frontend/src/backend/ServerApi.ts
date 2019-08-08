@@ -38,6 +38,6 @@ export class ServerApi {
     }
 }
 
-export const serverApi = new ServerApi()
-const serverApiContext = createContext(serverApi)
+export const globalServerApi = new ServerApi()
+const serverApiContext = createContext(globalServerApi)
 export const useServerApi = () => useContext(serverApiContext)

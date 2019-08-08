@@ -1,7 +1,7 @@
 import { observable } from "mobx"
 import { createContext, useContext } from "react"
 import { Track } from "../Model"
-import { ServerApi, serverApi, ServerEvent } from "./ServerApi"
+import { ServerApi, globalServerApi, ServerEvent } from "./ServerApi"
 
 export class Playback {
     constructor(private serverApi: ServerApi) {
@@ -47,6 +47,6 @@ export class Playback {
     enqueue = (trackId: string) => this.serverApi.request("Enqueue", { track_id: trackId })
 }
 
-export const playback = new Playback(serverApi)
-const playbackContext = createContext(playback)
+export const globalPlayback = new Playback(globalServerApi)
+const playbackContext = createContext(globalPlayback)
 export const usePlayback = () => useContext(playbackContext)
