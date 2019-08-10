@@ -48,9 +48,9 @@ impl Library {
             })
         };
         let track = Track {
-            title: tag("title", mp3.title()),
-            artist: tag("artist", mp3.artist()),
-            album: tag("album", mp3.album()),
+            title: tag("TITLE", mp3.title()),
+            artist: tag("ARTIST", mp3.artist()),
+            album: tag("ALBUM", mp3.album()),
             file_path,
         };
         let track_id = self.next_track_id();
