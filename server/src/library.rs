@@ -1,5 +1,6 @@
 use crate::api::EventSink;
 use crate::errors::{string_err, Try};
+use id3::Tag;
 use log;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -29,6 +30,35 @@ impl Library {
     }
 
     pub fn add_track(&mut self, file_path: String) -> Try<TrackId> {
+        if file_path.ends_with(".mp3") {
+            self.add_track_mp3(file_path)
+        } else if file_path.ends_with(".flac") {
+            self.add_track_flac(file_path)
+        } else {
+            Err(string_err(format!("unsupported file type {}", file_path)))
+        }
+    }
+
+    fn add_track_mp3(&mut self, file_path: String) -> Try<TrackId> {
+        let mp3 = Tag::read_from_path(&file_path)?;
+        let tag = |name: &str, value: Option<&str>| {
+            value.map(|t| t.to_string()).unwrap_or_else(|| {
+                log::warn!("no {} tag in {}", name, file_path);
+                format!("UNKNOWN {}", name)
+            })
+        };
+        let track = Track {
+            title: tag("title", mp3.title()),
+            artist: tag("artist", mp3.artist()),
+            album: tag("album", mp3.album()),
+            file_path,
+        };
+        let track_id = self.next_track_id();
+        self.tracks.insert(track_id, track);
+        Ok(track_id)
+    }
+
+    pub fn add_track_flac(&mut self, file_path: String) -> Try<TrackId> {
         let flac = claxon::FlacReader::open(&file_path)?;
         let tag = |name: &str| {
             flac.get_tag(name)
@@ -39,14 +69,11 @@ impl Library {
                     format!("UNKNOWN {}", name)
                 })
         };
-        let title = tag("TITLE");
-        let artist = tag("ARTIST");
-        let album = tag("ALBUM");
         let track_id = self.next_track_id();
         let track = Track {
-            title,
-            artist,
-            album,
+            title: tag("TITLE"),
+            artist: tag("ARTIST"),
+            album: tag("ALBUM"),
             file_path,
         };
 
