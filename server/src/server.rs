@@ -17,7 +17,7 @@ pub fn run_server() -> Try<()> {
     let player_app = PlayerApp::new(Arc::clone(&event_sink))?;
     let mut library = Library::new(Arc::clone(&event_sink));
     if let Err(e) = bootstrap_library(&mut library) {
-        log::error!("Error bootstrapping library: {}", e)
+        log::warn!("Did not bootstrap library: {}", e)
     }
     let app = Arc::new(App {
         player: Mutex::new(player_app),
