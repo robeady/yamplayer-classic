@@ -58,7 +58,7 @@ impl Library {
         Ok(track_id)
     }
 
-    pub fn add_track_flac(&mut self, file_path: String) -> Try<TrackId> {
+    fn add_track_flac(&mut self, file_path: String) -> Try<TrackId> {
         let flac = claxon::FlacReader::open(&file_path)?;
         let tag = |name: &str| {
             flac.get_tag(name)
@@ -69,16 +69,14 @@ impl Library {
                     format!("UNKNOWN {}", name)
                 })
         };
-        let track_id = self.next_track_id();
         let track = Track {
             title: tag("TITLE"),
             artist: tag("ARTIST"),
             album: tag("ALBUM"),
             file_path,
         };
-
+        let track_id = self.next_track_id();
         self.tracks.insert(track_id, track);
-
         Ok(track_id)
     }
 
