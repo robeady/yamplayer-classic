@@ -9,9 +9,8 @@ import VolumeMute from "@material-ui/icons/VolumeMute"
 import Slider from "@material-ui/core/Slider"
 import "./App.scss"
 import { observer } from "mobx-react-lite"
-import { usePlayback } from "./backend/Playback"
 import { Track } from "./Model"
-import { useLibrary } from "./backend/Library"
+import { useBackend } from "./backend/backend"
 
 const App = () => (
     <div className="player">
@@ -28,8 +27,7 @@ const Main = () => (
 )
 
 const TrackList = observer(() => {
-    const library = useLibrary()
-    const playback = usePlayback()
+    const { library, playback } = useBackend()
     return (
         <div>
             <ol className="trackList">
@@ -56,7 +54,7 @@ function TrackRow(props: { track: Track; enqueue: () => void }) {
 const LeftNav = () => <nav className="leftNav">navigation links go here</nav>
 
 const NowPlaying = observer(() => {
-    const pb = usePlayback()
+    const { playback: pb } = useBackend()
     return (
         <header className="nowPlaying">
             <div className="controls">

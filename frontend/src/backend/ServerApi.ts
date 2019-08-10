@@ -1,5 +1,4 @@
 import { RPCWebSocket, Payload } from "../websocket"
-import { createContext, useContext } from "react"
 import { Track } from "../Model"
 
 interface ServerRPCApi {
@@ -37,7 +36,3 @@ export class ServerApi {
         return (await this.ws.query({ type, args })) as any
     }
 }
-
-export const globalServerApi = new ServerApi()
-const serverApiContext = createContext(globalServerApi)
-export const useServerApi = () => useContext(serverApiContext)
