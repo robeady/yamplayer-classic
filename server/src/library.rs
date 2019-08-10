@@ -1,5 +1,6 @@
 use crate::api::EventSink;
 use crate::errors::{string_err, Try};
+use log;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -32,12 +33,15 @@ impl Library {
         let tag = |name: &str| {
             flac.get_tag(name)
                 .next()
-                .ok_or(string_err(format!("no {} tag in {}", name, file_path)))
                 .map(|t| t.to_string())
+                .unwrap_or_else(|| {
+                    log::warn!("no {} tag in {}", name, file_path);
+                    format!("UNKNOWN {}", name)
+                })
         };
-        let title = tag("TITLE")?;
-        let artist = tag("ARTIST")?;
-        let album = tag("ALBUM")?;
+        let title = tag("TITLE");
+        let artist = tag("ARTIST");
+        let album = tag("ALBUM");
         let track_id = self.next_track_id();
         let track = Track {
             title,
