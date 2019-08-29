@@ -1,26 +1,43 @@
 use crate::api::Event::{PlaybackPaused, PlaybackResumed, VolumeChanged};
-use crate::api::EventSink;
+use crate::api::{Event, EventSink};
 use crate::errors::Try;
 use crate::library::TrackId;
 use crate::playback;
 use crate::playback::PlaybackSource;
-use crate::queue;
+use crate::queue::{QueueEvent, QueueEventSink};
 use log;
 use parking_lot::Mutex;
 use rodio::decoder::Decoder;
-use rodio::{Sink, Source};
+use rodio::Source;
 use std::fs::File;
 use std::io::{Cursor, Read};
 use std::sync::Arc;
 
 pub struct PlayerApp {
-    source: Arc<Mutex<PlaybackSource>>,
+    source: Arc<Mutex<PlaybackSource<EventAdapter>>>,
     event_sink: Arc<EventSink>,
+}
+
+struct EventAdapter {
+    event_sink: Arc<EventSink>,
+}
+
+impl QueueEventSink for EventAdapter {
+    fn accept(&self, event: QueueEvent) {
+        self.event_sink.broadcast(&match event {
+            QueueEvent::TrackChanged(t) => Event::TrackChanged {
+                track_id: t.map(|t| t.id),
+            },
+        })
+    }
 }
 
 impl PlayerApp {
     pub fn new(event_sink: Arc<EventSink>) -> Try<PlayerApp> {
-        let source = playback::establish();
+        let adapter = EventAdapter {
+            event_sink: Arc::clone(&event_sink),
+        };
+        let source = playback::establish(adapter);
         Ok(PlayerApp { source, event_sink })
     }
 
@@ -65,7 +82,7 @@ impl PlayerApp {
         self.source.lock().queue.pop_front();
     }
 
-    pub fn add_to_queue(&self, track_file_path: &str) -> Try<()> {
+    pub fn add_to_queue(&self, track_id: TrackId, track_file_path: &str) -> Try<()> {
         log::debug!("loading file");
         let buffer = load_file(track_file_path)?;
         log::debug!("file loaded into memory");
@@ -81,7 +98,7 @@ impl PlayerApp {
         self.source
             .lock()
             .queue
-            .push_back(TrackId(0), Box::new(source));
+            .push_back(track_id, Box::new(source));
         Ok(())
     }
 

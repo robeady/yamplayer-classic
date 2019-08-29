@@ -1,4 +1,4 @@
-use crate::errors::{string_err, Erro};
+use crate::errors::{string_err, Erro, Try};
 use crate::file_completions::complete_file_path;
 use crate::library::{self, Library, TrackId};
 use crate::player::PlayerApp;
@@ -30,6 +30,9 @@ pub enum Request {
     CompleteFilePath {
         prefix: String,
     },
+    GetTrack {
+        track_id: String,
+    },
     GetLibrary,
     AddToLibrary {
         path: String,
@@ -47,6 +50,7 @@ impl App {
             SkipToNext => self.player.skip_to_next().and_done(),
             ChangeVolume { volume, muted } => self.player.update_volume(*volume, *muted).and_done(),
             CompleteFilePath { prefix } => self.completions(prefix),
+            GetTrack { track_id } => self.get_track(track_id),
             GetLibrary => self.list_library(),
             AddToLibrary { path } => self.add_to_library(path.clone()),
             GetPlaybackState => self.get_playback_state(),
@@ -54,22 +58,25 @@ impl App {
     }
 
     fn enqueue(&self, track_id: &str) -> Response {
-        let track_id = TrackId(
-            track_id
-                .parse()
-                .map_err(|_| string_err(format!("Invalid track ID {}", track_id)))?,
-        );
+        let track_id = parse_track_id(track_id)?;
         let lib = self.library.lock();
         let track = lib
             .get_track(track_id)
             .ok_or_else(|| string_err(format!("Unknown track {}", track_id.0)))?;
         log::info!("enqueueing track {} from {}", track_id.0, track.file_path);
-        self.player.add_to_queue(&track.file_path)?;
+        self.player.add_to_queue(track_id, &track.file_path)?;
         // TODO: this event should come from somewhere else
         //        self.event_sink.broadcast(&Event::TrackChanged {
         //            track: (track_id, track).into(),
         //        });
         done()
+    }
+
+    fn get_track(&self, track_id: &str) -> Response {
+        let track_id = parse_track_id(track_id)?;
+        let lib = self.library.lock();
+        let track = lib.get_track(track_id);
+        ok(&track)
     }
 
     fn list_library(&self) -> Response {
@@ -96,6 +103,12 @@ impl App {
             completions: complete_file_path(prefix)?,
         })
     }
+}
+
+fn parse_track_id(track_id: &str) -> Try<TrackId> {
+    Ok(TrackId(track_id.parse().map_err(|_| {
+        string_err(format!("Invalid track ID {}", track_id))
+    })?))
 }
 
 #[derive(Debug, Serialize)]
@@ -175,11 +188,11 @@ struct CompleteFilePathResp {
 
 #[derive(Serialize)]
 #[serde(tag = "type", content = "args")]
-pub enum Event<'a> {
+pub enum Event {
     VolumeChanged { muted: bool, volume: f32 },
     PlaybackPaused,
     PlaybackResumed,
-    TrackChanged { track: Track<'a> },
+    TrackChanged { track_id: Option<TrackId> },
 }
 
 pub trait EventDestination: Send + Sync {

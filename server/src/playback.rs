@@ -1,20 +1,25 @@
-use crate::queue::Queue;
+use crate::queue::{Queue, QueueEventSink};
 use cpal::traits::{DeviceTrait, EventLoopTrait, HostTrait};
-use cpal::Format;
+use cpal::{Format, SampleFormat};
 use parking_lot::Mutex;
 use rodio::Sample;
 use std::sync::Arc;
 use std::thread;
 
-pub struct PlaybackSource {
-    pub queue: Queue<f32>,
+pub struct PlaybackSource<E> {
+    pub queue: Queue<f32, E>,
     pub controls: PlaybackControls,
 }
 
-impl PlaybackSource {
-    fn new(volume: f32, audio_format: Format) -> Self {
+impl<E: QueueEventSink> PlaybackSource<E> {
+    fn new(volume: f32, audio_format: Format, event_sink: E) -> Self {
+        assert_eq!(
+            audio_format.data_type,
+            SampleFormat::F32,
+            "Only f32 samples supported"
+        );
         PlaybackSource {
-            queue: Queue::new(audio_format),
+            queue: Queue::new(audio_format, event_sink),
             controls: PlaybackControls {
                 paused: false,
                 muted: false,
@@ -24,7 +29,7 @@ impl PlaybackSource {
     }
 }
 
-impl Iterator for PlaybackSource {
+impl<E: QueueEventSink> Iterator for PlaybackSource<E> {
     type Item = f32;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -47,7 +52,10 @@ pub struct PlaybackControls {
     pub volume: f32,
 }
 
-pub fn establish() -> Arc<Mutex<PlaybackSource>> {
+pub fn establish<E>(event_sink: E) -> Arc<Mutex<PlaybackSource<E>>>
+where
+    E: QueueEventSink + Send + 'static,
+{
     let host = cpal::default_host();
     let event_loop = host.event_loop();
     let device = host
@@ -68,7 +76,7 @@ pub fn establish() -> Arc<Mutex<PlaybackSource>> {
         .expect("failed to play audio stream");
 
     let volume = 0.5f32;
-    let source = Arc::new(Mutex::new(PlaybackSource::new(volume, format)));
+    let source = Arc::new(Mutex::new(PlaybackSource::new(volume, format, event_sink)));
     let source_for_audio_thread = Arc::clone(&source);
 
     thread::Builder::new()

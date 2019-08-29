@@ -8,6 +8,7 @@ interface ServerRPCApi {
     (type: "SkipToNext"): Promise<void>
     (type: "ChangeVolume", args: { muted?: boolean; volume?: number }): Promise<void>
     (type: "CompleteFilePath", args: { prefix: string }): Promise<void>
+    (type: "GetTrack", args: { track_id: string }): Promise<Track | null>
     (type: "GetLibrary"): Promise<{ tracks: Track[] }>
     (type: "AddToLibrary", args: { path: string }): Promise<void>
     (type: "GetPlaybackState"): Promise<{ playing: boolean; volume: number }>
@@ -19,7 +20,7 @@ export type ServerEvent =
     | { type: "VolumeChanged"; args: { muted: boolean; volume: number } }
     | { type: "PlaybackPaused" }
     | { type: "PlaybackResumed" }
-    | { type: "TrackChanged"; args: { track: Track } }
+    | { type: "TrackChanged"; args: { track_id: string | null } }
 
 export class ServerApi {
     private handleEvent = (payload: Payload) => {

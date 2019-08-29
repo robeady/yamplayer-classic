@@ -1,21 +1,37 @@
 use crate::library::TrackId;
+use crate::queue::QueueEvent::TrackChanged;
 use cpal::Format;
 use rodio::source::UniformSourceIterator;
 use rodio::{Sample, Source};
 use std::collections::VecDeque;
 
-pub struct Queue<S> {
+pub struct Queue<S, E> {
     tracks: VecDeque<QueueItem<S>>,
     next_entry_marker: u64,
     audio_format: Format,
+    event_sink: E,
 }
 
-impl<S: Sample + Send + 'static> Queue<S> {
-    pub fn new(audio_format: Format) -> Self {
+pub trait QueueEventSink {
+    fn accept(&self, event: QueueEvent);
+}
+
+pub enum QueueEvent {
+    /// a different track is now playing (or if None, the queue is now empty)
+    TrackChanged(Option<EnqueuedTrack>),
+}
+
+impl<S, E> Queue<S, E>
+where
+    S: Sample + Send + 'static,
+    E: QueueEventSink,
+{
+    pub fn new(audio_format: Format, event_sink: E) -> Self {
         Queue {
             tracks: VecDeque::new(),
             next_entry_marker: 0,
             audio_format,
+            event_sink,
         }
     }
 
@@ -27,6 +43,9 @@ impl<S: Sample + Send + 'static> Queue<S> {
         let t = self.create_track(id, source);
         let entry_marker = t.track.entry_marker;
         self.tracks.push_back(t);
+        if self.tracks.len() == 1 {
+            self.raise_track_changed();
+        }
         entry_marker
     }
 
@@ -61,7 +80,14 @@ impl<S: Sample + Send + 'static> Queue<S> {
     }
 
     pub fn pop_front(&mut self) -> Option<EnqueuedTrack> {
-        self.tracks.pop_front().map(|t| t.track)
+        let popped = self.tracks.pop_front().map(|t| t.track);
+        self.raise_track_changed();
+        popped
+    }
+
+    fn raise_track_changed(&self) {
+        self.event_sink
+            .accept(TrackChanged(self.tracks.get(0).map(|t| t.track)));
     }
 
     // returns true iff the item was in the queue
@@ -84,7 +110,11 @@ impl<S: Sample + Send + 'static> Queue<S> {
     }
 }
 
-impl<S: Sample> Iterator for Queue<S> {
+impl<S, F> Iterator for Queue<S, F>
+where
+    S: Sample + Send + 'static,
+    F: QueueEventSink,
+{
     type Item = S;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -94,6 +124,7 @@ impl<S: Sample> Iterator for Queue<S> {
             } else {
                 // current source is over, advance to next
                 self.tracks.pop_front();
+                self.raise_track_changed();
                 // recurse now that current_source is updated
                 self.next()
             }
@@ -109,6 +140,7 @@ struct QueueItem<S> {
     audio_source: Box<dyn Source<Item = S> + Send>,
 }
 
+#[derive(Copy, Clone)]
 pub struct EnqueuedTrack {
     pub id: TrackId,
     pub entry_marker: EntryMarker,

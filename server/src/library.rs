@@ -89,8 +89,15 @@ impl Library {
     }
 }
 
-#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
+#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(into = "String")]
 pub struct TrackId(pub u64);
+
+impl From<TrackId> for String {
+    fn from(t: TrackId) -> Self {
+        t.0.to_string()
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Track {

@@ -27,7 +27,14 @@ export class Playback {
                 this.playing = true
                 return
             case "TrackChanged":
-                this.currentTrack = e.args.track
+                if (e.args.track_id === null) {
+                    this.currentTrack = null
+                } else {
+                    this.serverApi.request("GetTrack", { track_id: e.args.track_id }).then(track => {
+                        if (track === null) throw Error("unknown track " + e.args.track_id)
+                        this.currentTrack = track
+                    })
+                }
                 return
         }
     }
