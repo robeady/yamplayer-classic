@@ -42,10 +42,10 @@ impl App {
         use Request::*;
         match request {
             Enqueue { track_id } => self.enqueue(track_id),
-            Stop => self.stop(),
-            TogglePause => self.toggle_pause(),
-            SkipToNext => self.skip_to_next(),
-            ChangeVolume { volume, muted } => self.set_volume(*volume, *muted),
+            Stop => self.player.empty_queue().and_done(),
+            TogglePause => self.player.toggle_pause().and_done(),
+            SkipToNext => self.player.skip_to_next().and_done(),
+            ChangeVolume { volume, muted } => self.player.update_volume(*volume, *muted).and_done(),
             CompleteFilePath { prefix } => self.completions(prefix),
             GetLibrary => self.list_library(),
             AddToLibrary { path } => self.add_to_library(path.clone()),
@@ -83,32 +83,12 @@ impl App {
         done()
     }
 
-    fn stop(&self) -> Response {
-        self.player.empty_queue();
-        done()
-    }
-
-    fn set_volume(&self, volume: Option<f32>, muted: Option<bool>) -> Response {
-        self.player.update_volume(volume, muted);
-        done()
-    }
-
-    fn toggle_pause(&self) -> Response {
-        self.player.toggle_pause();
-        done()
-    }
-
     fn get_playback_state(&self) -> Response {
         ok(&PlaybackState {
             playing: !self.player.paused(),
             volume: self.player.unmuted_volume(),
             muted: self.player.muted(),
         })
-    }
-
-    fn skip_to_next(&self) -> Response {
-        self.player.skip_to_next();
-        done()
     }
 
     fn completions(&self, prefix: &str) -> Response {
@@ -180,6 +160,13 @@ fn ok(data: &impl serde::Serialize) -> Response {
 fn done() -> Response {
     ok(&())
 }
+
+trait AndDoneExt {
+    fn and_done(&self) -> Response {
+        done()
+    }
+}
+impl<T> AndDoneExt for T {}
 
 #[derive(Debug, Serialize, Deserialize)]
 struct CompleteFilePathResp {
