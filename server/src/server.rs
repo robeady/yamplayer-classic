@@ -20,7 +20,7 @@ pub fn run_server() -> Try<()> {
         log::warn!("Did not bootstrap library: {}", e)
     }
     let app = Arc::new(App {
-        player: Mutex::new(player_app),
+        player: player_app,
         library: Mutex::new(library),
         event_sink: Arc::clone(&event_sink),
     });

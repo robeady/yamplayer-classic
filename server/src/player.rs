@@ -32,7 +32,7 @@ impl PlayerApp {
         self.source.lock().controls.muted
     }
 
-    pub fn update_volume(&mut self, volume: Option<f32>, muted: Option<bool>) {
+    pub fn update_volume(&self, volume: Option<f32>, muted: Option<bool>) {
         let mut source = self.source.lock();
         if let Some(new_volume) = volume {
             source.controls.volume = new_volume;
@@ -46,7 +46,7 @@ impl PlayerApp {
         })
     }
 
-    pub fn toggle_pause(&mut self) {
+    pub fn toggle_pause(&self) {
         let mut source = self.source.lock();
         if source.controls.paused {
             source.controls.paused = false;
@@ -61,29 +61,31 @@ impl PlayerApp {
         self.source.lock().controls.paused
     }
 
-    pub fn add_to_queue(&mut self, track_file_path: &str) -> Try<()> {
+    pub fn skip_to_next(&self) {
+        self.source.lock().queue.pop_front();
+    }
+
+    pub fn add_to_queue(&self, track_file_path: &str) -> Try<()> {
         log::debug!("loading file");
         let buffer = load_file(track_file_path)?;
         log::debug!("file loaded into memory");
         let source: Decoder<_> = Decoder::new(Cursor::new(buffer))?;
         match source.total_duration().map(|d| d.as_secs()) {
-            None => log::warn!("playing track with unknown length"),
+            None => log::warn!("enqueuing track with unknown length"),
             Some(duration_secs) => log::info!(
-                "playing track with length: {}:{:02}",
+                "enqueuing track with length: {}:{:02}",
                 duration_secs / 60,
                 duration_secs % 60
             ),
         }
-        // for now we just replace what's currently playing
-        self.empty_queue();
-        self.source.lock().queue.push_back(queue::Track {
-            id: TrackId(0),
-            source: Box::new(source),
-        });
+        self.source
+            .lock()
+            .queue
+            .push_back(TrackId(0), Box::new(source));
         Ok(())
     }
 
-    pub fn empty_queue(&mut self) {
+    pub fn empty_queue(&self) {
         self.source.lock().queue.clear();
     }
 }

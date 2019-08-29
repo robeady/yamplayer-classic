@@ -41,6 +41,8 @@ export class Playback {
 
     togglePause = () => this.serverApi.request("TogglePause")
 
+    skipToNext = () => this.serverApi.request("SkipToNext")
+
     stop = () => this.serverApi.request("Stop")
 
     enqueue = (trackId: string) => this.serverApi.request("Enqueue", { track_id: trackId })

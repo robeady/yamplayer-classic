@@ -9,7 +9,7 @@ use std::convert::Into;
 use std::sync::Arc;
 
 pub struct App {
-    pub player: Mutex<PlayerApp>,
+    pub player: PlayerApp,
     pub library: Mutex<Library>,
     pub event_sink: Arc<EventSink>,
 }
@@ -22,6 +22,7 @@ pub enum Request {
     },
     Stop,
     TogglePause,
+    SkipToNext,
     ChangeVolume {
         volume: Option<f32>,
         muted: Option<bool>,
@@ -43,6 +44,7 @@ impl App {
             Enqueue { track_id } => self.enqueue(track_id),
             Stop => self.stop(),
             TogglePause => self.toggle_pause(),
+            SkipToNext => self.skip_to_next(),
             ChangeVolume { volume, muted } => self.set_volume(*volume, *muted),
             CompleteFilePath { prefix } => self.completions(prefix),
             GetLibrary => self.list_library(),
@@ -62,12 +64,11 @@ impl App {
             .get_track(track_id)
             .ok_or_else(|| string_err(format!("Unknown track {}", track_id.0)))?;
         log::info!("enqueueing track {} from {}", track_id.0, track.file_path);
-        let mut player = self.player.lock();
-        player.add_to_queue(&track.file_path)?;
+        self.player.add_to_queue(&track.file_path)?;
         // TODO: this event should come from somewhere else
-        self.event_sink.broadcast(&Event::TrackChanged {
-            track: (track_id, track).into(),
-        });
+        //        self.event_sink.broadcast(&Event::TrackChanged {
+        //            track: (track_id, track).into(),
+        //        });
         done()
     }
 
@@ -83,29 +84,31 @@ impl App {
     }
 
     fn stop(&self) -> Response {
-        self.player.lock().empty_queue();
+        self.player.empty_queue();
         done()
     }
 
     fn set_volume(&self, volume: Option<f32>, muted: Option<bool>) -> Response {
-        let mut player = self.player.lock();
-        player.update_volume(volume, muted);
+        self.player.update_volume(volume, muted);
         done()
     }
 
     fn toggle_pause(&self) -> Response {
-        let mut player = self.player.lock();
-        player.toggle_pause();
+        self.player.toggle_pause();
         done()
     }
 
     fn get_playback_state(&self) -> Response {
-        let player = self.player.lock();
         ok(&PlaybackState {
-            playing: !player.paused(),
-            volume: player.unmuted_volume(),
-            muted: player.muted(),
+            playing: !self.player.paused(),
+            volume: self.player.unmuted_volume(),
+            muted: self.player.muted(),
         })
+    }
+
+    fn skip_to_next(&self) -> Response {
+        self.player.skip_to_next();
+        done()
     }
 
     fn completions(&self, prefix: &str) -> Response {

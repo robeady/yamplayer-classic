@@ -67,7 +67,7 @@ const NowPlaying = observer(() => {
                     playing={pb.playing}
                     onPlayPause={() => pb.togglePause()}
                     onPrev={() => {}}
-                    onNext={() => {}}
+                    onNext={() => pb.skipToNext()}
                 />
                 <VolumeControl muted={pb.muted} volume={pb.volume} setVolume={pb.changeVolume} />
                 <QueueControls />
@@ -102,7 +102,7 @@ const PlaybackControls = (props: {
         ) : (
             <PlayArrow onClick={props.onPlayPause} className="playPauseButton" />
         )}
-        <SkipNext className="nextButton" />
+        <SkipNext onClick={props.onNext} className="nextButton" />
     </div>
 )
 

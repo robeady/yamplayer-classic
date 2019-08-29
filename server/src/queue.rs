@@ -5,7 +5,7 @@ use rodio::{Sample, Source};
 use std::collections::VecDeque;
 
 pub struct Queue<S> {
-    tracks: VecDeque<EnqueuedTrack<S>>,
+    tracks: VecDeque<QueueItem<S>>,
     next_entry_marker: u64,
     audio_format: Format,
 }
@@ -19,40 +19,55 @@ impl<S: Sample + Send + 'static> Queue<S> {
         }
     }
 
-    pub fn push_back<T: Sample + Send + 'static>(&mut self, track: Track<T>) -> EntryMarker {
-        let track = self.create_track(track);
-        let entry_marker = track.entry_marker;
-        self.tracks.push_back(track);
+    pub fn push_back<T: Sample + Send + 'static>(
+        &mut self,
+        id: TrackId,
+        source: Box<dyn Source<Item = T> + Send>,
+    ) -> EntryMarker {
+        let t = self.create_track(id, source);
+        let entry_marker = t.track.entry_marker;
+        self.tracks.push_back(t);
         entry_marker
     }
 
-    pub fn push_front<T: Sample + Send + 'static>(&mut self, track: Track<T>) -> EntryMarker {
-        let track = self.create_track(track);
-        let entry_marker = track.entry_marker;
-        self.tracks.push_front(track);
+    pub fn push_front<T: Sample + Send + 'static>(
+        &mut self,
+        id: TrackId,
+        source: Box<dyn Source<Item = T> + Send>,
+    ) -> EntryMarker {
+        let t = self.create_track(id, source);
+        let entry_marker = t.track.entry_marker;
+        self.tracks.push_front(t);
         entry_marker
     }
 
-    fn create_track<T: Sample + Send + 'static>(&mut self, track: Track<T>) -> EnqueuedTrack<S> {
+    fn create_track<T: Sample + Send + 'static>(
+        &mut self,
+        id: TrackId,
+        source: Box<dyn Source<Item = T> + Send>,
+    ) -> QueueItem<S> {
         let entry_marker = EntryMarker(self.next_entry_marker);
         self.next_entry_marker += 1;
         // converter that interpolates the input track samples producing the right output format
         let mixed_source = UniformSourceIterator::new(
-            track.source,
+            source,
             self.audio_format.channels,
             self.audio_format.sample_rate.0,
         );
-        EnqueuedTrack {
+        QueueItem {
+            track: EnqueuedTrack { id, entry_marker },
             audio_source: Box::new(mixed_source),
-            id: track.id,
-            entry_marker,
         }
+    }
+
+    pub fn pop_front(&mut self) -> Option<EnqueuedTrack> {
+        self.tracks.pop_front().map(|t| t.track)
     }
 
     // returns true iff the item was in the queue
     pub fn remove(&mut self, marker: EntryMarker) -> bool {
         let length_before = self.tracks.len();
-        self.tracks.retain(|t| t.entry_marker != marker);
+        self.tracks.retain(|t| t.track.entry_marker != marker);
         match length_before - self.tracks.len() {
             0 => false,
             1 => true,
@@ -64,8 +79,8 @@ impl<S: Sample + Send + 'static> Queue<S> {
         self.tracks.clear();
     }
 
-    fn tracks(&mut self) -> impl Iterator<Item = (EntryMarker, TrackId)> + '_ {
-        self.tracks.iter().map(|t| (t.entry_marker, t.id))
+    fn tracks(&mut self) -> impl Iterator<Item = &EnqueuedTrack> + '_ {
+        self.tracks.iter().map(|t| &t.track)
     }
 }
 
@@ -89,15 +104,14 @@ impl<S: Sample> Iterator for Queue<S> {
     }
 }
 
-pub struct Track<S> {
-    pub id: TrackId,
-    pub source: Box<dyn Source<Item = S> + Send>,
+struct QueueItem<S> {
+    track: EnqueuedTrack,
+    audio_source: Box<dyn Source<Item = S> + Send>,
 }
 
-struct EnqueuedTrack<S> {
-    id: TrackId,
-    entry_marker: EntryMarker,
-    audio_source: Box<dyn Source<Item = S> + Send>,
+pub struct EnqueuedTrack {
+    pub id: TrackId,
+    pub entry_marker: EntryMarker,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]

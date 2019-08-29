@@ -5,6 +5,7 @@ interface ServerRPCApi {
     (type: "Enqueue", args: { track_id: string }): Promise<void>
     (type: "Stop"): Promise<void>
     (type: "TogglePause"): Promise<void>
+    (type: "SkipToNext"): Promise<void>
     (type: "ChangeVolume", args: { muted?: boolean; volume?: number }): Promise<void>
     (type: "CompleteFilePath", args: { prefix: string }): Promise<void>
     (type: "GetLibrary"): Promise<{ tracks: Track[] }>
