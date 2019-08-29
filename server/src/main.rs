@@ -6,7 +6,9 @@ mod errors;
 mod file_completions;
 mod http;
 mod library;
+mod playback;
 mod player;
+mod queue;
 mod server;
 mod websocket;
 

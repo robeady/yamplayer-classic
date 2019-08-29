@@ -1,77 +1,64 @@
 use crate::api::Event::{PlaybackPaused, PlaybackResumed, VolumeChanged};
 use crate::api::EventSink;
-use crate::errors::{string_err, Try};
+use crate::errors::Try;
+use crate::library::TrackId;
+use crate::playback;
+use crate::playback::PlaybackSource;
+use crate::queue;
 use log;
+use parking_lot::Mutex;
 use rodio::decoder::Decoder;
-use rodio::{Device, Sink, Source};
+use rodio::{Sink, Source};
 use std::fs::File;
 use std::io::{Cursor, Read};
 use std::sync::Arc;
 
 pub struct PlayerApp {
-    device: Arc<Device>,
-    sink: Sink,
+    source: Arc<Mutex<PlaybackSource>>,
     event_sink: Arc<EventSink>,
-    unmuted_volume: f32,
-    muted: bool,
 }
 
 impl PlayerApp {
     pub fn new(event_sink: Arc<EventSink>) -> Try<PlayerApp> {
-        let device =
-            Arc::new(rodio::default_output_device().ok_or(string_err("no output device"))?);
-        let sink = Sink::new(&device);
-        Ok(PlayerApp {
-            device,
-            sink,
-            event_sink,
-            unmuted_volume: 0.5,
-            muted: false,
-        })
+        let source = playback::establish();
+        Ok(PlayerApp { source, event_sink })
     }
 
     pub fn unmuted_volume(&self) -> f32 {
-        self.unmuted_volume
+        self.source.lock().controls.volume
     }
 
     pub fn muted(&self) -> bool {
-        self.muted
+        self.source.lock().controls.muted
     }
 
     pub fn update_volume(&mut self, volume: Option<f32>, muted: Option<bool>) {
+        let mut source = self.source.lock();
         if let Some(new_volume) = volume {
-            self.unmuted_volume = new_volume;
+            source.controls.volume = new_volume;
         }
         if let Some(new_muted) = muted {
-            self.muted = new_muted;
+            source.controls.muted = new_muted;
         }
-        self.update_sink_volume();
         self.event_sink.broadcast(&VolumeChanged {
-            muted: self.muted,
-            volume: self.unmuted_volume,
+            muted: source.controls.muted,
+            volume: source.controls.volume,
         })
     }
 
-    fn update_sink_volume(&mut self) {
-        if self.muted {
-            self.sink.set_volume(0.0)
-        } else {
-            self.sink.set_volume(self.unmuted_volume)
-        }
-    }
-
     pub fn toggle_pause(&mut self) {
-        if self.sink.is_paused() {
-            self.sink.play();
+        let mut source = self.source.lock();
+        if source.controls.paused {
+            source.controls.paused = false;
             self.event_sink.broadcast(&PlaybackResumed)
         } else {
-            self.sink.pause();
+            source.controls.paused = true;
             self.event_sink.broadcast(&PlaybackPaused)
         }
     }
 
     pub fn paused(&self) -> bool {
-        self.sink.is_paused()
+        self.source.lock().controls.paused
     }
 
     pub fn add_to_queue(&mut self, track_file_path: &str) -> Try<()> {
@@ -89,15 +76,15 @@ impl PlayerApp {
         }
         // for now we just replace what's currently playing
         self.empty_queue();
-        self.sink.append(source);
+        self.source.lock().queue.push_back(queue::Track {
+            id: TrackId(0),
+            source: Box::new(source),
+        });
         Ok(())
     }
 
     pub fn empty_queue(&mut self) {
-        self.sink.stop();
-        let new_sink = Sink::new(&self.device);
-        new_sink.set_volume(self.sink.volume());
-        self.sink = new_sink;
+        self.source.lock().queue.clear();
     }
 }
 
