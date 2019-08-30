@@ -127,6 +127,7 @@ impl<'a> From<(TrackId, &'a library::Track)> for Track<'a> {
             title: &track.title,
             artist: &track.artist,
             album: &track.album,
+            duration_secs: track.duration_secs,
         }
     }
 }
@@ -143,6 +144,7 @@ pub struct Track<'a> {
     pub title: &'a str,
     pub artist: &'a str,
     pub album: &'a str,
+    pub duration_secs: f32,
 }
 
 #[derive(Debug, Clone)]
