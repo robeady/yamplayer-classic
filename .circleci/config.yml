@@ -6,7 +6,9 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: build-cache
+          keys:
+            - build-cache-{{ checksum "server/Cargo.lock" }}
+            - build-cache
       - run: sudo npm install -g pnpm
       - run: rustup toolchain install nightly
       # building cpal on linux requires ALSA development files
@@ -20,11 +22,10 @@ jobs:
       - run: pnpm run build --prefix frontend
       - run: pnpm test --prefix frontend
       - save_cache:
-          key: build-cache-{{ epoch }}
+          key: build-cache-{{ checksum "server/Cargo.lock" }}
           paths:
             - "~/.cargo"
             - "./server/target"
-            - "~/.pnpm-store"
 workflows:
   version: 2
   build_and_test:
