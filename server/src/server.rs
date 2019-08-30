@@ -1,19 +1,21 @@
-use crate::library::Library;
-use log;
-use parking_lot::Mutex;
-
-use crate::api::EventSink;
 use crate::api::{App, Request};
+use crate::api::{EventSink, Payload};
 use crate::bootstrap::bootstrap_library;
 use crate::errors::Try;
 use crate::http;
+use crate::library::Library;
 use crate::player::PlayerApp;
 use crate::websocket::ws_connection;
+use log;
+use parking_lot::Mutex;
 use std::sync::Arc;
 use warp::Filter;
 
 pub fn run_server() -> Try<()> {
     let event_sink = Arc::new(EventSink::empty());
+    event_sink.add_destination(Box::new(|payload: &Payload| {
+        log::info!("event: {}", payload.json)
+    }));
     let player_app = PlayerApp::new(Arc::clone(&event_sink))?;
     let mut library = Library::new(Arc::clone(&event_sink));
     if let Err(e) = bootstrap_library(&mut library) {

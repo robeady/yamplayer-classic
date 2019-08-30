@@ -215,6 +215,12 @@ impl EventDestination for EventCollector {
     }
 }
 
+impl<F: Fn(&Payload) -> () + Send + Sync> EventDestination for F {
+    fn send_event(&self, payload: &Payload) {
+        self(payload)
+    }
+}
+
 pub struct EventSink {
     destinations: RwLock<DenseSlotMap<Box<dyn EventDestination>>>,
 }
