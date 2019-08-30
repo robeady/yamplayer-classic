@@ -1,3 +1,5 @@
+cargo-features = ["profile-overrides"]
+
 [package]
 name = "server"
 version = "0.1.0"
@@ -24,3 +26,7 @@ tokio-threadpool = "0.1"
 id3 = "0.3.0"
 cpal = "0.10"
 minimp3 = "0.3.2"
+
+# optimise dependencies in dev build
+[profile.dev.overrides."*"]
+opt-level = 2
