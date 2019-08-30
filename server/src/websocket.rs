@@ -18,9 +18,7 @@ pub fn ws_connection(app: Arc<App>, websocket: WebSocket) -> impl Future<Item = 
     // first, send stuff from `outbound_rx` to the websocket
     tokio::spawn(
         outbound_rx
-            .forward(socket_tx.sink_map_err(move |e| {
-                // TODO websocket send error
-            }))
+            .forward(socket_tx.sink_map_err(move |e| panic!("websocket send error: {}", e)))
             .map(|_| ()),
     );
 
@@ -51,10 +49,7 @@ pub fn ws_connection(app: Arc<App>, websocket: WebSocket) -> impl Future<Item = 
             app2.event_sink.remove_destination(key);
             r
         })
-        .map_err(|e| {
-            // TODO: websocket receive error
-            ()
-        })
+        .map_err(|e| panic!("websocket receive error: {}", e))
 }
 
 #[derive(Debug, Deserialize)]
