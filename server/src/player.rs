@@ -1,14 +1,13 @@
 use crate::api::Event::{PlaybackPaused, PlaybackResumed, VolumeChanged};
 use crate::api::{Event, EventSink};
 use crate::errors::Try;
-use crate::library::TrackId;
+use crate::library::{Track, TrackId};
 use crate::playback;
 use crate::playback::PlaybackSource;
 use crate::queue::{QueueEvent, QueueEventSink};
 use log;
 use parking_lot::Mutex;
 use rodio::decoder::Decoder;
-use rodio::Source;
 use std::fs::File;
 use std::io::{Cursor, Read};
 use std::sync::Arc;
@@ -82,19 +81,16 @@ impl PlayerApp {
         self.source.lock().queue.pop_front();
     }
 
-    pub fn add_to_queue(&self, track_id: TrackId, track_file_path: &str) -> Try<()> {
+    pub fn add_to_queue(&self, track_id: TrackId, track: &Track) -> Try<()> {
         log::debug!("loading file");
-        let buffer = load_file(track_file_path)?;
+        let buffer = load_file(&track.file_path)?;
         log::debug!("file loaded into memory");
         let source: Decoder<_> = Decoder::new(Cursor::new(buffer))?;
-        match source.total_duration().map(|d| d.as_secs()) {
-            None => log::warn!("enqueuing track with unknown length"),
-            Some(duration_secs) => log::info!(
-                "enqueuing track with length: {}:{:02}",
-                duration_secs / 60,
-                duration_secs % 60
-            ),
-        }
+        log::info!(
+            "enqueuing track with length: {}:{:02}",
+            track.duration_secs as i64 / 60,
+            track.duration_secs as i64 % 60
+        );
         self.source
             .lock()
             .queue

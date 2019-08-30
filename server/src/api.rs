@@ -64,7 +64,7 @@ impl App {
             .get_track(track_id)
             .ok_or_else(|| string_err(format!("Unknown track {}", track_id.0)))?;
         log::info!("enqueueing track {} from {}", track_id.0, track.file_path);
-        self.player.add_to_queue(track_id, &track.file_path)?;
+        self.player.add_to_queue(track_id, &track)?;
         // TODO: this event should come from somewhere else
         //        self.event_sink.broadcast(&Event::TrackChanged {
         //            track: (track_id, track).into(),
