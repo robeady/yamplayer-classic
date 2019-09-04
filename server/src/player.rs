@@ -24,9 +24,7 @@ struct EventAdapter {
 impl QueueEventSink for EventAdapter {
     fn accept(&self, event: QueueEvent) {
         self.event_sink.broadcast(&match event {
-            QueueEvent::TrackChanged(t) => Event::TrackChanged {
-                track_id: t.map(|t| t.id),
-            },
+            QueueEvent::TrackChanged(t) => Event::PlayingTrackChanged(t),
         })
     }
 }
@@ -64,12 +62,18 @@ impl PlayerApp {
 
     pub fn toggle_pause(&self) {
         let mut source = self.source.lock();
+        // TODO: is zero a sensible default?
+        let position_secs = source
+            .queue
+            .current_track_played_duration_secs()
+            .unwrap_or(0.0);
         if source.controls.paused {
             source.controls.paused = false;
-            self.event_sink.broadcast(&PlaybackResumed)
+            self.event_sink
+                .broadcast(&PlaybackResumed { position_secs })
         } else {
             source.controls.paused = true;
-            self.event_sink.broadcast(&PlaybackPaused)
+            self.event_sink.broadcast(&PlaybackPaused { position_secs })
         }
     }
 
@@ -94,7 +98,7 @@ impl PlayerApp {
         self.source
             .lock()
             .queue
-            .push_back(track_id, Box::new(source));
+            .push_back(track_id, track.duration_secs, Box::new(source));
         Ok(())
     }
 

@@ -29,4 +29,4 @@ minimp3 = "0.3.2"
 
 # optimise dependencies in dev build
 [profile.dev.overrides."*"]
-opt-level = 2
+opt-level = 3

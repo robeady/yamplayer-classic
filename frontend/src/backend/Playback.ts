@@ -22,17 +22,33 @@ export class Playback {
                 return
             case "PlaybackPaused":
                 this.playing = false
+                if (this.playingTrack !== null) {
+                    this.playingTrack.progress = {
+                        positionSecs: e.args.position_secs,
+                        timestampOffsetMillis: performance.now(),
+                    }
+                }
                 return
             case "PlaybackResumed":
                 this.playing = true
+                if (this.playingTrack !== null) {
+                    this.playingTrack.progress = {
+                        positionSecs: e.args.position_secs,
+                        timestampOffsetMillis: performance.now(),
+                    }
+                }
                 return
-            case "TrackChanged":
-                if (e.args.track_id === null) {
-                    this.currentTrack = null
+            case "PlayingTrackChanged":
+                if (e.args === null) {
+                    this.playingTrack = null
                 } else {
-                    this.serverApi.request("GetTrack", { track_id: e.args.track_id }).then(track => {
-                        if (track === null) throw Error("unknown track " + e.args.track_id)
-                        this.currentTrack = track
+                    this.serverApi.request("GetTrack", { track_id: e.args.id }).then(track => {
+                        if (track === null) throw Error("unknown track " + e.args!.id)
+                        this.playingTrack = {
+                            track,
+                            durationSecs: e.args!.duration_secs,
+                            progress: { positionSecs: 0, timestampOffsetMillis: performance.now() },
+                        }
                     })
                 }
                 return
@@ -42,7 +58,12 @@ export class Playback {
     @observable volume = 0.5
     @observable muted = false
     @observable playing = false
-    @observable currentTrack: Track | null = null
+    @observable
+    playingTrack: {
+        track: Track
+        durationSecs: number
+        progress: { positionSecs: number; timestampOffsetMillis: number }
+    } | null = null
 
     changeVolume = (muted: boolean, volume?: number) => this.serverApi.request("ChangeVolume", { muted, volume })
 

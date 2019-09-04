@@ -1,5 +1,6 @@
 use crate::api::EventSink;
 use crate::errors::{string_err, Try};
+use crate::serde::number_string;
 use id3::Tag;
 use log;
 use serde_derive::{Deserialize, Serialize};
@@ -120,14 +121,7 @@ impl Library {
 }
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(into = "String")]
-pub struct TrackId(pub u64);
-
-impl From<TrackId> for String {
-    fn from(t: TrackId) -> Self {
-        t.0.to_string()
-    }
-}
+pub struct TrackId(#[serde(with = "number_string")] pub u64);
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Track {

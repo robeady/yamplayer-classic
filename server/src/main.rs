@@ -9,6 +9,7 @@ mod library;
 mod playback;
 mod player;
 mod queue;
+mod serde;
 mod server;
 mod websocket;
 

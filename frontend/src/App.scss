@@ -52,6 +52,15 @@
     margin-left: 1rem;
 }
 
+.progress {
+    display: flex;
+}
+
+.progressBar {
+    width: 40rem;
+    padding: 0 1rem;
+}
+
 .trackList {
     margin: 0;
     padding-left: 0;

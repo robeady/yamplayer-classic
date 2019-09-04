@@ -18,9 +18,9 @@ type ServerEventHandler = (e: ServerEvent) => void
 
 export type ServerEvent =
     | { type: "VolumeChanged"; args: { muted: boolean; volume: number } }
-    | { type: "PlaybackPaused" }
-    | { type: "PlaybackResumed" }
-    | { type: "TrackChanged"; args: { track_id: string | null } }
+    | { type: "PlaybackPaused"; args: { position_secs: number } }
+    | { type: "PlaybackResumed"; args: { position_secs: number } }
+    | { type: "PlayingTrackChanged"; args: null | { id: string; duration_secs: number; entry_marker: string } }
 
 export class ServerApi {
     private handleEvent = (payload: Payload) => {

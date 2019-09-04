@@ -1,8 +1,10 @@
 use crate::library::TrackId;
 use crate::queue::QueueEvent::TrackChanged;
+use crate::serde::number_string;
 use cpal::Format;
 use rodio::source::UniformSourceIterator;
 use rodio::{Sample, Source};
+use serde_derive::Serialize;
 use std::collections::VecDeque;
 
 pub struct Queue<S, E> {
@@ -38,9 +40,10 @@ where
     pub fn push_back<T: Sample + Send + 'static>(
         &mut self,
         id: TrackId,
+        duration_secs: f32,
         source: Box<dyn Source<Item = T> + Send>,
     ) -> EntryMarker {
-        let t = self.create_track(id, source);
+        let t = self.create_track(id, duration_secs, source);
         let entry_marker = t.track.entry_marker;
         self.tracks.push_back(t);
         if self.tracks.len() == 1 {
@@ -52,17 +55,22 @@ where
     pub fn push_front<T: Sample + Send + 'static>(
         &mut self,
         id: TrackId,
+        duration_secs: f32,
         source: Box<dyn Source<Item = T> + Send>,
     ) -> EntryMarker {
-        let t = self.create_track(id, source);
+        let t = self.create_track(id, duration_secs, source);
         let entry_marker = t.track.entry_marker;
         self.tracks.push_front(t);
+        if self.tracks.len() == 1 {
+            self.raise_track_changed();
+        }
         entry_marker
     }
 
     fn create_track<T: Sample + Send + 'static>(
         &mut self,
         id: TrackId,
+        duration_secs: f32,
         source: Box<dyn Source<Item = T> + Send>,
     ) -> QueueItem<S> {
         let entry_marker = EntryMarker(self.next_entry_marker);
@@ -74,8 +82,12 @@ where
             self.audio_format.sample_rate.0,
         );
         QueueItem {
-            track: EnqueuedTrack { id, entry_marker },
-            audio_source: Box::new(mixed_source),
+            track: EnqueuedTrack {
+                id,
+                duration_secs,
+                entry_marker,
+            },
+            audio_source: CountedSource::new(Box::new(mixed_source)),
         }
     }
 
@@ -108,6 +120,14 @@ where
     fn tracks(&mut self) -> impl Iterator<Item = &EnqueuedTrack> + '_ {
         self.tracks.iter().map(|t| &t.track)
     }
+
+    pub fn current_track_played_duration_secs(&self) -> Option<f32> {
+        self.tracks.get(0).map(|t| {
+            t.audio_source.samples_played as f32
+                / self.audio_format.channels as f32
+                / self.audio_format.sample_rate.0 as f32
+        })
+    }
 }
 
 impl<S, F> Iterator for Queue<S, F>
@@ -137,14 +157,41 @@ where
 
 struct QueueItem<S> {
     track: EnqueuedTrack,
-    audio_source: Box<dyn Source<Item = S> + Send>,
+    audio_source: CountedSource<S>,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Serialize)]
 pub struct EnqueuedTrack {
     pub id: TrackId,
+    pub duration_secs: f32,
     pub entry_marker: EntryMarker,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct EntryMarker(u64);
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize)]
+pub struct EntryMarker(#[serde(with = "number_string")] u64);
+
+struct CountedSource<S> {
+    samples_played: u64,
+    inner: Box<dyn Source<Item = S> + Send>,
+}
+
+impl<S> CountedSource<S> {
+    fn new(source: Box<dyn Source<Item = S> + Send>) -> Self {
+        CountedSource {
+            samples_played: 0,
+            inner: source,
+        }
+    }
+}
+
+impl<S> Iterator for CountedSource<S> {
+    type Item = S;
+
+    fn next(&mut self) -> Option<S> {
+        let sample = self.inner.next();
+        if sample.is_some() {
+            self.samples_played += 1;
+        }
+        sample
+    }
+}

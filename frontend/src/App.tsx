@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useState, useEffect } from "react"
 import PlayArrow from "@material-ui/icons/PlayArrow"
 import Pause from "@material-ui/icons/Pause"
 import SkipNext from "@material-ui/icons/SkipNext"
@@ -60,8 +60,8 @@ const NowPlaying = observer(() => {
             <div className="controls">
                 <TrackSummary
                     art="https://i.scdn.co/image/93852b7922b792c49e9198e09314c6b885eb1ed2"
-                    artist={(pb.currentTrack && pb.currentTrack.artist) || ""}
-                    track={(pb.currentTrack && pb.currentTrack.title) || ""}
+                    artist={(pb.playingTrack && pb.playingTrack.track.artist) || ""}
+                    track={(pb.playingTrack && pb.playingTrack.track.title) || ""}
                 />
                 <PlaybackControls
                     playing={pb.playing}
@@ -69,15 +69,13 @@ const NowPlaying = observer(() => {
                     onPrev={() => {}}
                     onNext={() => pb.skipToNext()}
                 />
+                <PlayerProgress playingTrack={pb.playingTrack} />
                 <VolumeControl muted={pb.muted} volume={pb.volume} setVolume={pb.changeVolume} />
                 <QueueControls />
             </div>
-            <ProgressBar />
         </header>
     )
 })
-
-const ProgressBar = () => <div>---------------</div>
 
 const TrackSummary = (props: { track: string; artist: string; art: string }) => (
     <div className="trackSummary">
@@ -135,5 +133,59 @@ const VolumeControl = (props: {
     )
 }
 const QueueControls = () => <div>QueueControls</div>
+
+const PlayerProgress = (props: {
+    playingTrack: {
+        durationSecs: number
+        progress: { positionSecs: number; timestampOffsetMillis: number }
+    } | null
+}) => {
+    const [currentTimestampOffsetMillis, setCurrentTimestampOffsetMillis] = useState(performance.now())
+
+    useEffect(() => {
+        const handle = setInterval(() => setCurrentTimestampOffsetMillis(performance.now()), 250)
+        return () => {
+            clearInterval(handle)
+        }
+    })
+
+    let fraction = 0
+    let secondsSinceStart = null
+    if (props.playingTrack !== null) {
+        const { durationSecs, progress } = props.playingTrack
+        secondsSinceStart = clamp(
+            (currentTimestampOffsetMillis - progress.timestampOffsetMillis) / 1000 + progress.positionSecs,
+            0,
+            durationSecs,
+        )
+
+        fraction = secondsSinceStart / durationSecs
+    }
+
+    return (
+        <div className="progress">
+            <Time seconds={props.playingTrack === null ? null : secondsSinceStart} />
+            <div className="progressBar">
+                <Slider min={0} max={1} step={0.001} value={fraction} />
+            </div>
+            <Time seconds={props.playingTrack === null ? null : props.playingTrack.durationSecs} />
+        </div>
+    )
+}
+
+const Time = (props: { seconds: number | null }) => {
+    if (props.seconds === null) return <span />
+    const mins = Math.floor(props.seconds / 60)
+    const secs = Math.round(props.seconds % 60)
+        .toString()
+        .padStart(2, "0")
+    return (
+        <span>
+            {mins}:{secs}
+        </span>
+    )
+}
+
+const clamp = (number: number, min: number, max: number) => (number < min ? min : number > max ? max : number)
 
 export default App

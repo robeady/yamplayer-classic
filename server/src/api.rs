@@ -2,6 +2,7 @@ use crate::errors::{string_err, Erro, Try};
 use crate::file_completions::complete_file_path;
 use crate::library::{self, Library, TrackId};
 use crate::player::PlayerApp;
+use crate::queue::EnqueuedTrack;
 use parking_lot::{Mutex, RwLock};
 use serde_derive::{Deserialize, Serialize};
 use slotmap::{DenseSlotMap, Key};
@@ -192,9 +193,9 @@ struct CompleteFilePathResp {
 #[serde(tag = "type", content = "args")]
 pub enum Event {
     VolumeChanged { muted: bool, volume: f32 },
-    PlaybackPaused,
-    PlaybackResumed,
-    TrackChanged { track_id: Option<TrackId> },
+    PlaybackPaused { position_secs: f32 },
+    PlaybackResumed { position_secs: f32 },
+    PlayingTrackChanged(Option<EnqueuedTrack>),
 }
 
 pub trait EventDestination: Send + Sync {
