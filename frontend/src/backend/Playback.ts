@@ -1,5 +1,5 @@
 import { observable } from "mobx"
-import { Track } from "../Model"
+import { Track, PlaybackProgress } from "../Model"
 import { ServerApi, ServerEvent } from "./ServerApi"
 
 export class Playback {
@@ -25,7 +25,7 @@ export class Playback {
                 if (this.playingTrack !== null) {
                     this.playingTrack.progress = {
                         positionSecs: e.args.position_secs,
-                        timestampOffsetMillis: performance.now(),
+                        timestampOffsetMillis: null,
                     }
                 }
                 return
@@ -62,7 +62,7 @@ export class Playback {
     playingTrack: {
         track: Track
         durationSecs: number
-        progress: { positionSecs: number; timestampOffsetMillis: number }
+        progress: PlaybackProgress
     } | null = null
 
     changeVolume = (muted: boolean, volume?: number) => this.serverApi.request("ChangeVolume", { muted, volume })

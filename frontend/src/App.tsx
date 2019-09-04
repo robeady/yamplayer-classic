@@ -9,7 +9,7 @@ import VolumeMute from "@material-ui/icons/VolumeMute"
 import Slider from "@material-ui/core/Slider"
 import "./App.scss"
 import { observer } from "mobx-react-lite"
-import { Track } from "./Model"
+import { Track, PlaybackProgress } from "./Model"
 import { useBackend } from "./backend/backend"
 
 const App = () => (
@@ -137,13 +137,13 @@ const QueueControls = () => <div>QueueControls</div>
 const PlayerProgress = (props: {
     playingTrack: {
         durationSecs: number
-        progress: { positionSecs: number; timestampOffsetMillis: number }
+        progress: PlaybackProgress
     } | null
 }) => {
     const [currentTimestampOffsetMillis, setCurrentTimestampOffsetMillis] = useState(performance.now())
 
     useEffect(() => {
-        const handle = setInterval(() => setCurrentTimestampOffsetMillis(performance.now()), 250)
+        const handle = setInterval(() => setCurrentTimestampOffsetMillis(performance.now()), 500)
         return () => {
             clearInterval(handle)
         }
@@ -153,12 +153,15 @@ const PlayerProgress = (props: {
     let secondsSinceStart = null
     if (props.playingTrack !== null) {
         const { durationSecs, progress } = props.playingTrack
-        secondsSinceStart = clamp(
-            (currentTimestampOffsetMillis - progress.timestampOffsetMillis) / 1000 + progress.positionSecs,
-            0,
-            durationSecs,
-        )
-
+        if (progress.timestampOffsetMillis === null) {
+            secondsSinceStart = progress.positionSecs
+        } else {
+            secondsSinceStart = clamp(
+                (currentTimestampOffsetMillis - progress.timestampOffsetMillis) / 1000 + progress.positionSecs,
+                0,
+                durationSecs,
+            )
+        }
         fraction = secondsSinceStart / durationSecs
     }
 
