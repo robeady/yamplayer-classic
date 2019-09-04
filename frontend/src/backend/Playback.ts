@@ -22,22 +22,22 @@ export class Playback {
                 this.muted = e.args.muted
                 return
             case "PlaybackPaused":
-                this.playing = false
                 if (this.playingTrack !== null) {
                     this.playingTrack.progress = {
                         positionSecs: e.args.position_secs,
                         timestampOffsetMillis: null,
                     }
                 }
+                this.playing = false
                 return
             case "PlaybackResumed":
-                this.playing = true
                 if (this.playingTrack !== null) {
                     this.playingTrack.progress = {
                         positionSecs: e.args.position_secs,
                         timestampOffsetMillis: performance.now(),
                     }
                 }
+                this.playing = true
                 return
             case "PlayingTrackChanged":
                 if (e.args === null) {
