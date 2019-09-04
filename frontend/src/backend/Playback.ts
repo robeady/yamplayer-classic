@@ -1,4 +1,4 @@
-import { observable } from "mobx"
+import { observable, action } from "mobx"
 import { Track, PlaybackProgress } from "../Model"
 import { ServerApi, ServerEvent } from "./ServerApi"
 
@@ -14,6 +14,7 @@ export class Playback {
         this.playing = initialState.playing
     }
 
+    @action
     private handleEvent = (e: ServerEvent) => {
         switch (e.type) {
             case "VolumeChanged":

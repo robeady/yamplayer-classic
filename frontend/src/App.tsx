@@ -134,47 +134,56 @@ const VolumeControl = (props: {
 }
 const QueueControls = () => <div>QueueControls</div>
 
-const PlayerProgress = (props: {
-    playingTrack: {
-        durationSecs: number
-        progress: PlaybackProgress
-    } | null
-}) => {
-    const [currentTimestampOffsetMillis, setCurrentTimestampOffsetMillis] = useState(performance.now())
+const PlayerProgress = observer(
+    (props: {
+        playingTrack: {
+            durationSecs: number
+            progress: PlaybackProgress
+        } | null
+    }) => {
+        const [currentTimestampOffsetMillis, setCurrentTimestampOffsetMillis] = useState(performance.now())
 
-    useEffect(() => {
-        const handle = setInterval(() => setCurrentTimestampOffsetMillis(performance.now()), 500)
-        return () => {
-            clearInterval(handle)
+        const playing = props.playingTrack !== null && props.playingTrack.progress.timestampOffsetMillis !== null
+        useEffect(
+            () => {
+                if (playing) {
+                    setCurrentTimestampOffsetMillis(performance.now())
+                    const handle = setInterval(() => setCurrentTimestampOffsetMillis(performance.now()), 500)
+                    return () => {
+                        clearInterval(handle)
+                    }
+                }
+            },
+            [playing],
+        )
+
+        let fraction = 0
+        let secondsSinceStart = null
+        if (props.playingTrack !== null) {
+            const { durationSecs, progress } = props.playingTrack
+            if (progress.timestampOffsetMillis === null) {
+                secondsSinceStart = progress.positionSecs
+            } else {
+                secondsSinceStart = clamp(
+                    (currentTimestampOffsetMillis - progress.timestampOffsetMillis) / 1000 + progress.positionSecs,
+                    0,
+                    durationSecs,
+                )
+            }
+            fraction = secondsSinceStart / durationSecs
         }
-    })
 
-    let fraction = 0
-    let secondsSinceStart = null
-    if (props.playingTrack !== null) {
-        const { durationSecs, progress } = props.playingTrack
-        if (progress.timestampOffsetMillis === null) {
-            secondsSinceStart = progress.positionSecs
-        } else {
-            secondsSinceStart = clamp(
-                (currentTimestampOffsetMillis - progress.timestampOffsetMillis) / 1000 + progress.positionSecs,
-                0,
-                durationSecs,
-            )
-        }
-        fraction = secondsSinceStart / durationSecs
-    }
-
-    return (
-        <div className="progress">
-            <Time seconds={props.playingTrack === null ? null : secondsSinceStart} />
-            <div className="progressBar">
-                <Slider min={0} max={1} step={0.001} value={fraction} />
+        return (
+            <div className="progress">
+                <Time seconds={props.playingTrack === null ? null : secondsSinceStart} />
+                <div className="progressBar">
+                    <Slider min={0} max={1} step={0.001} value={fraction} />
+                </div>
+                <Time seconds={props.playingTrack === null ? null : props.playingTrack.durationSecs} />
             </div>
-            <Time seconds={props.playingTrack === null ? null : props.playingTrack.durationSecs} />
-        </div>
-    )
-}
+        )
+    },
+)
 
 const Time = (props: { seconds: number | null }) => {
     if (props.seconds === null) return <span />
