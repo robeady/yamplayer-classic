@@ -11,6 +11,8 @@ dependencies:
   '@typescript-eslint/parser': 2.1.0_eslint@6.3.0
   babel-eslint: 10.0.2_eslint@6.3.0
   eslint: 6.3.0
+  eslint-config-react-app: 5.0.1_7671d02082698a2c37e55e21ca2c6340
+  eslint-plugin-flowtype: 4.3.0_eslint@6.3.0
   eslint-plugin-import: 2.18.2_eslint@6.3.0
   eslint-plugin-jsx-a11y: 6.2.3_eslint@6.3.0
   eslint-plugin-react: 7.14.3_eslint@6.3.0
@@ -4109,6 +4111,31 @@ packages:
       eslint-plugin-react-hooks: 1.x
     resolution:
       integrity: sha512-GYXP3F/0PSHlYfGHhahqnJze8rYKxzXgrzXVqRRd4rDO40ga4NA3aHM7/HKbwceDN0/C1Ij3BoAWFawJgRbXEw==
+  /eslint-config-react-app/5.0.1_7671d02082698a2c37e55e21ca2c6340:
+    dependencies:
+      '@typescript-eslint/eslint-plugin': 2.1.0_3a8cea979a77aa77c321dad4153067ce
+      '@typescript-eslint/parser': 2.1.0_eslint@6.3.0
+      babel-eslint: 10.0.2_eslint@6.3.0
+      confusing-browser-globals: 1.0.8
+      eslint: 6.3.0
+      eslint-plugin-flowtype: 4.3.0_eslint@6.3.0
+      eslint-plugin-import: 2.18.2_eslint@6.3.0
+      eslint-plugin-jsx-a11y: 6.2.3_eslint@6.3.0
+      eslint-plugin-react: 7.14.3_eslint@6.3.0
+      eslint-plugin-react-hooks: 2.0.1_eslint@6.3.0
+    dev: false
+    peerDependencies:
+      '@typescript-eslint/eslint-plugin': 1.x
+      '@typescript-eslint/parser': 1.x
+      babel-eslint: 10.x
+      eslint: 6.x
+      eslint-plugin-flowtype: 3.x
+      eslint-plugin-import: 2.x
+      eslint-plugin-jsx-a11y: 6.x
+      eslint-plugin-react: 7.x
+      eslint-plugin-react-hooks: 1.x
+    resolution:
+      integrity: sha512-GYXP3F/0PSHlYfGHhahqnJze8rYKxzXgrzXVqRRd4rDO40ga4NA3aHM7/HKbwceDN0/C1Ij3BoAWFawJgRbXEw==
   /eslint-import-resolver-node/0.3.2:
     dependencies:
       debug: 2.6.9
@@ -4147,6 +4174,17 @@ packages:
       eslint: '>=5.0.0'
     resolution:
       integrity: sha512-bhewp36P+t7cEV0b6OdmoRWJCBYRiHFlqPZAG1oS3SF+Y0LQkeDvFSM4oxoxvczD1OdONCXMlJfQFiWLcV9urw==
+  /eslint-plugin-flowtype/4.3.0_eslint@6.3.0:
+    dependencies:
+      eslint: 6.3.0
+      lodash: 4.17.15
+    dev: false
+    engines:
+      node: '>=4'
+    peerDependencies:
+      eslint: '>=6.1.0'
+    resolution:
+      integrity: sha512-elvqoadMHnYqSYN1YXn02DR7SFW8Kc2CLe8na3m2GdQPQhIY+BgCd2quVJ1AbW3aO0zcyE9loVJ7Szy8A/xlMA==
   /eslint-plugin-import/2.18.2_eslint@6.3.0:
     dependencies:
       array-includes: 3.0.3
@@ -10658,6 +10696,8 @@ specifiers:
   core-js: ^2.0.0
   craco-linaria: ^1.1.1
   eslint: ^6.1.0
+  eslint-config-react-app: ^5.0.0
+  eslint-plugin-flowtype: ^4.3.0
   eslint-plugin-import: ^2.18.2
   eslint-plugin-jsx-a11y: ^6.2.3
   eslint-plugin-react: ^7.14.3

@@ -144,18 +144,16 @@ const PlayerProgress = observer(
         const [currentTimestampOffsetMillis, setCurrentTimestampOffsetMillis] = useState(performance.now())
 
         const playing = props.playingTrack !== null && props.playingTrack.progress.timestampOffsetMillis !== null
-        useEffect(
-            () => {
-                if (playing) {
-                    setCurrentTimestampOffsetMillis(performance.now())
-                    const handle = setInterval(() => setCurrentTimestampOffsetMillis(performance.now()), 500)
+
+        useEffect(() => {
+            if (playing) {
+                setCurrentTimestampOffsetMillis(performance.now())
+                const handle = setInterval(() => setCurrentTimestampOffsetMillis(performance.now()), 500)
                     return () => {
-                        clearInterval(handle)
-                    }
+                    clearInterval(handle)
                 }
-            },
-            [playing],
-        )
+            }
+        }, [playing])
 
         let fraction = 0
         let secondsSinceStart = null

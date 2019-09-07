@@ -22,3 +22,17 @@ some chrome bug
 ## Screenshot
 
 ![screenshot](screenshot.png)
+
+## Dev setup
+
+I use vscode.
+
+It has built in typescript support; I select the workspace version of typescript by clicking the version number in the bottom right when editing a TS file.
+
+I use the prettier extension and enable autoformatting on save in this project.
+
+I use the eslint extension. It must be configured to lint typescript files by adding this to your settings.json:
+
+    "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"]
+
+I also use the vscode-styled-components extension for syntax highlighting and autocomplete in `css` blocks.
