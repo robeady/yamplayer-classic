@@ -7,7 +7,7 @@ jobs:
       - checkout
       - restore_cache:
           keys:
-            - build-cache-{{ checksum "server/Cargo.lock" }}
+            - build-cache-{{ checksum "server/Cargo.lock" }}-{{ checksum "server/Cargo.toml" }}
             - build-cache
       - run: sudo npm install -g pnpm
       - run: rustup toolchain install nightly
@@ -22,7 +22,7 @@ jobs:
       - run: pnpm run build --prefix frontend
       - run: pnpm test --prefix frontend
       - save_cache:
-          key: build-cache-{{ checksum "server/Cargo.lock" }}
+          key: build-cache-{{ checksum "server/Cargo.lock" }}-{{ checksum "server/Cargo.toml" }}
           paths:
             - "~/.cargo"
             - "./server/target"
