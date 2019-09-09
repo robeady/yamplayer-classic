@@ -37,7 +37,7 @@ where
         }
     }
 
-    pub fn push_back<T: Sample + Send + 'static>(
+    pub fn enqueue_last<T: Sample + Send + 'static>(
         &mut self,
         id: TrackId,
         duration_secs: f32,
@@ -52,7 +52,7 @@ where
         entry_marker
     }
 
-    pub fn push_front<T: Sample + Send + 'static>(
+    pub fn enqueue_next<T: Sample + Send + 'static>(
         &mut self,
         id: TrackId,
         duration_secs: f32,
@@ -60,9 +60,11 @@ where
     ) -> EntryMarker {
         let t = self.create_track(id, duration_secs, source);
         let entry_marker = t.track.entry_marker;
-        self.tracks.push_front(t);
-        if self.tracks.len() == 1 {
+        if self.tracks.is_empty() {
+            self.tracks.push_front(t);
             self.raise_track_changed();
+        } else {
+            self.tracks.insert(1, t);
         }
         entry_marker
     }
@@ -91,7 +93,7 @@ where
         }
     }
 
-    pub fn pop_front(&mut self) -> Option<EnqueuedTrack> {
+    pub fn skip_current(&mut self) -> Option<EnqueuedTrack> {
         let popped = self.tracks.pop_front().map(|t| t.track);
         self.raise_track_changed();
         popped
@@ -137,7 +139,7 @@ where
 {
     type Item = S;
 
-    fn next(&mut self) -> Option<Self::Item> {
+    fn next(&mut self) -> Option<S> {
         if let Some(track) = self.tracks.get_mut(0) {
             if let Some(sample) = track.audio_source.next() {
                 Some(sample)

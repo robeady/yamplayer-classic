@@ -82,7 +82,7 @@ impl PlayerApp {
     }
 
     pub fn skip_to_next(&self) {
-        self.source.lock().queue.pop_front();
+        self.source.lock().queue.skip_current();
     }
 
     pub fn add_to_queue(&self, track_id: TrackId, track: &Track) -> Try<()> {
@@ -98,7 +98,7 @@ impl PlayerApp {
         self.source
             .lock()
             .queue
-            .push_back(track_id, track.duration_secs, Box::new(source));
+            .enqueue_last(track_id, track.duration_secs, Box::new(source));
         Ok(())
     }
 

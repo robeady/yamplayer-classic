@@ -32,7 +32,7 @@ impl<E: QueueEventSink> PlaybackSource<E> {
 impl<E: QueueEventSink> Iterator for PlaybackSource<E> {
     type Item = f32;
 
-    fn next(&mut self) -> Option<Self::Item> {
+    fn next(&mut self) -> Option<f32> {
         if self.controls.paused {
             Some(Sample::zero_value())
         } else if self.controls.muted {
