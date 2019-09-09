@@ -10,7 +10,7 @@ You can enter a file path and press play!
 
 Install node
 
-`npm install` in this directory (actually I prefer `pnpm` which avoids creating a new local copy of every dependency in every project you install)
+`pnpm install` in this directory
 
 ## Running
 
