@@ -1,5 +1,5 @@
-import { observable, action } from "mobx"
-import { Track, PlaybackProgress } from "../Model"
+import { observable, action, computed } from "mobx"
+import { PlaybackTiming } from "../Model"
 import { ServerApi, ServerEvent } from "./ServerApi"
 
 export class Playback {
@@ -9,10 +9,12 @@ export class Playback {
     }
 
     private initialiseState = async () => {
+        // TODO initialise all the state
         const initialState = await this.serverApi.request("GetPlaybackState")
-        this.volume = initialState.volume
-        this.playing = initialState.playing
+        this.setVolume(initialState.volume)
     }
+
+    @action setVolume = (v: number) => (this.volume = v)
 
     @action
     private handleEvent = (e: ServerEvent) => {
@@ -21,54 +23,36 @@ export class Playback {
                 this.volume = e.args.volume
                 this.muted = e.args.muted
                 return
-            case "PlaybackPaused":
-                if (this.playingTrack !== null) {
-                    this.playingTrack.progress = {
-                        positionSecs: e.args.position_secs,
-                        timestampOffsetMillis: null,
-                    }
-                }
-                this.playing = false
-                return
-            case "PlaybackResumed":
-                if (this.playingTrack !== null) {
-                    this.playingTrack.progress = {
-                        positionSecs: e.args.position_secs,
-                        timestampOffsetMillis: performance.now(),
-                    }
-                }
-                this.playing = true
-                return
-            case "PlayingTrackChanged":
-                if (e.args === null) {
-                    this.playingTrack = null
-                } else {
-                    this.serverApi.request("GetTrack", { track_id: e.args.id }).then(track => {
-                        if (track === null) throw Error("unknown track " + e.args!.id)
-                        this.playingTrack = {
-                            track,
-                            durationSecs: e.args!.duration_secs,
-                            progress: { positionSecs: 0, timestampOffsetMillis: performance.now() },
-                        }
-                    })
-                }
+            case "PlaybackChanged":
+                this.currentTrack =
+                    e.args.current_track === null
+                        ? null
+                        : {
+                              trackId: e.args.current_track.track.id,
+                              durationSecs: e.args.current_track.track.duration_secs,
+                              playingSinceTimestamp: e.args.paused ? "paused" : performance.now(),
+                              positionSecsAtTimestamp: e.args.current_track.position_secs,
+                          }
                 return
         }
     }
 
     @observable volume = 0.5
     @observable muted = false
-    @observable playing = false
+
     @observable
-    playingTrack: {
-        track: Track
-        durationSecs: number
-        progress: PlaybackProgress
-    } | null = null
+    currentTrack: PlaybackTiming & { trackId: string } | null = null
+
+    @computed
+    get playing() {
+        return this.currentTrack !== null && this.currentTrack.playingSinceTimestamp !== "paused"
+    }
 
     changeVolume = (muted: boolean, volume?: number) => this.serverApi.request("ChangeVolume", { muted, volume })
 
-    togglePause = () => this.serverApi.request("TogglePause")
+    pause = () => this.serverApi.request("Pause")
+
+    unpause = () => this.serverApi.request("Unpause")
 
     skipToNext = () => this.serverApi.request("SkipToNext")
 

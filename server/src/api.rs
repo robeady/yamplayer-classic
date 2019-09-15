@@ -2,7 +2,7 @@ use crate::errors::{string_err, Erro, Try};
 use crate::file_completions::complete_file_path;
 use crate::library::{self, Library, TrackId};
 use crate::player::PlayerApp;
-use crate::queue::EnqueuedTrack;
+use crate::queue::CurrentTrack;
 use parking_lot::{Mutex, RwLock};
 use serde_derive::{Deserialize, Serialize};
 use slotmap::{DenseSlotMap, Key};
@@ -22,7 +22,8 @@ pub enum Request {
         track_id: String,
     },
     Stop,
-    TogglePause,
+    Pause,
+    Unpause,
     SkipToNext,
     ChangeVolume {
         volume: Option<f32>,
@@ -47,7 +48,8 @@ impl App {
         match request {
             Enqueue { track_id } => self.enqueue(track_id),
             Stop => self.player.empty_queue().and_done(),
-            TogglePause => self.player.toggle_pause().and_done(),
+            Pause => self.player.pause().and_done(),
+            Unpause => self.player.unpause().and_done(),
             SkipToNext => self.player.skip_to_next().and_done(),
             ChangeVolume { volume, muted } => self.player.update_volume(*volume, *muted).and_done(),
             CompleteFilePath { prefix } => self.completions(prefix),
@@ -192,10 +194,14 @@ struct CompleteFilePathResp {
 #[derive(Serialize)]
 #[serde(tag = "type", content = "args")]
 pub enum Event {
-    VolumeChanged { muted: bool, volume: f32 },
-    PlaybackPaused { position_secs: f32 },
-    PlaybackResumed { position_secs: f32 },
-    PlayingTrackChanged(Option<EnqueuedTrack>),
+    VolumeChanged {
+        muted: bool,
+        volume: f32,
+    },
+    PlaybackChanged {
+        paused: bool,
+        current_track: Option<CurrentTrack>,
+    },
 }
 
 pub trait EventDestination: Send + Sync {

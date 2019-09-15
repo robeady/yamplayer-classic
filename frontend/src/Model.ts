@@ -6,12 +6,8 @@ export interface Track {
     album: string
 }
 
-export interface PlaybackProgress {
-    /** The playback position of the current song in seconds */
-    positionSecs: number
-    /**
-     * If the current song is playing, the timestamp offset (from performance.now)
-     * at which the position in seconds was correct. Else if the current song is paused, null.
-     */
-    timestampOffsetMillis: number | null
+export interface PlaybackTiming {
+    durationSecs: number
+    playingSinceTimestamp: number | "paused"
+    positionSecsAtTimestamp: number
 }

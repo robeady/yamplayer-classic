@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react"
+import React from "react"
 import PlayArrow from "@material-ui/icons/PlayArrow"
 import Pause from "@material-ui/icons/Pause"
 import SkipNext from "@material-ui/icons/SkipNext"
@@ -9,15 +9,22 @@ import VolumeMute from "@material-ui/icons/VolumeMute"
 import Slider from "@material-ui/core/Slider"
 import "./App.scss"
 import { observer } from "mobx-react-lite"
-import { Track, PlaybackProgress } from "./Model"
+import { Track } from "./Model"
 import { useBackend } from "./backend/backend"
+import { css } from "linaria"
+import { NoPlayerProgress, PlayerProgress } from "./components/PlayerProgress"
+import { configure } from "mobx"
+configure({
+    computedRequiresReaction: true,
+    enforceActions: "observed",
+})
 
 const App = () => (
-    <div className="player">
-        <NowPlaying />
-        <LeftNav />
-        <Main />
-    </div>
+        <div className="player">
+            <NowPlaying />
+            <LeftNav />
+            <Main />
+        </div>
 )
 
 const Main = () => (
@@ -31,7 +38,7 @@ const TrackList = observer(() => {
     return (
         <div>
             <ol className="trackList">
-                {Object.values(library.tracks || {}).map(t => (
+                {Object.values(library.getLibrary() || {}).map(t => (
                     <TrackRow track={t} enqueue={() => playback.enqueue(t.id)} />
                 ))}
             </ol>
@@ -54,22 +61,32 @@ function TrackRow(props: { track: Track; enqueue: () => void }) {
 const LeftNav = () => <nav className="leftNav">navigation links go here</nav>
 
 const NowPlaying = observer(() => {
-    const { playback: pb } = useBackend()
+    const { playback: pb, library } = useBackend()
+    const track = pb.currentTrack && library.getTrack(pb.currentTrack.trackId)
     return (
         <header className="nowPlaying">
             <div className="controls">
                 <TrackSummary
                     art="https://i.scdn.co/image/93852b7922b792c49e9198e09314c6b885eb1ed2"
-                    artist={(pb.playingTrack && pb.playingTrack.track.artist) || ""}
-                    track={(pb.playingTrack && pb.playingTrack.track.title) || ""}
+                    artist={(track && track.artist) || ""}
+                    track={(track && track.title) || ""}
                 />
                 <PlaybackControls
                     playing={pb.playing}
-                    onPlayPause={() => pb.togglePause()}
+                    onUnpause={() => pb.unpause()}
+                    onPause={() => pb.pause()}
                     onPrev={() => {}}
                     onNext={() => pb.skipToNext()}
                 />
-                <PlayerProgress playingTrack={pb.playingTrack} />
+                {pb.currentTrack === null ? (
+                    <NoPlayerProgress />
+                ) : (
+                    <PlayerProgress
+                        durationSecs={pb.currentTrack.durationSecs}
+                        playingSinceTimestamp={pb.currentTrack.playingSinceTimestamp}
+                        positionSecsAtTimestamp={pb.currentTrack.positionSecsAtTimestamp}
+                    />
+                )}
                 <VolumeControl muted={pb.muted} volume={pb.volume} setVolume={pb.changeVolume} />
                 <QueueControls />
             </div>
@@ -89,16 +106,17 @@ const TrackSummary = (props: { track: string; artist: string; art: string }) => 
 
 const PlaybackControls = (props: {
     playing: boolean
-    onPlayPause: () => void
+    onUnpause: () => void
+    onPause: () => void
     onPrev: () => void
     onNext: () => void
 }) => (
     <div className="playbackControls">
         <SkipPrevious className="prevButton" />
         {props.playing ? (
-            <Pause onClick={props.onPlayPause} className="playPauseButton" />
+            <Pause onClick={props.onPause} className="playPauseButton" />
         ) : (
-            <PlayArrow onClick={props.onPlayPause} className="playPauseButton" />
+            <PlayArrow onClick={props.onUnpause} className="playPauseButton" />
         )}
         <SkipNext onClick={props.onNext} className="nextButton" />
     </div>
@@ -133,68 +151,5 @@ const VolumeControl = (props: {
     )
 }
 const QueueControls = () => <div>QueueControls</div>
-
-const PlayerProgress = observer(
-    (props: {
-        playingTrack: {
-            durationSecs: number
-            progress: PlaybackProgress
-        } | null
-    }) => {
-        const [currentTimestampOffsetMillis, setCurrentTimestampOffsetMillis] = useState(performance.now())
-
-        const playing = props.playingTrack !== null && props.playingTrack.progress.timestampOffsetMillis !== null
-
-        useEffect(() => {
-            if (playing) {
-                setCurrentTimestampOffsetMillis(performance.now())
-                const handle = setInterval(() => setCurrentTimestampOffsetMillis(performance.now()), 500)
-                    return () => {
-                    clearInterval(handle)
-                }
-            }
-        }, [playing])
-
-        let fraction = 0
-        let secondsSinceStart = null
-        if (props.playingTrack !== null) {
-            const { durationSecs, progress } = props.playingTrack
-            if (progress.timestampOffsetMillis === null) {
-                secondsSinceStart = progress.positionSecs
-            } else {
-                secondsSinceStart = clamp(
-                    (currentTimestampOffsetMillis - progress.timestampOffsetMillis) / 1000 + progress.positionSecs,
-                    0,
-                    durationSecs,
-                )
-            }
-            fraction = secondsSinceStart / durationSecs
-        }
-
-        return (
-            <div className="progress">
-                <Time secs={props.playingTrack === null ? null : secondsSinceStart} />
-                <div className="progressBar">
-                    <Slider min={0} max={1} step={0.001} value={fraction} />
-                </div>
-                <Time secs={props.playingTrack === null ? null : props.playingTrack.durationSecs} />
-            </div>
-        )
-    },
-)
-
-const Time = (props: { secs: number | null }) => {
-    if (props.secs === null) return <span />
-    const totalSeconds = Math.round(props.secs)
-    const mins = Math.floor(totalSeconds / 60)
-    const secs = (totalSeconds % 60).toString().padStart(2, "0")
-    return (
-        <span>
-            {mins}:{secs}
-        </span>
-    )
-}
-
-const clamp = (number: number, min: number, max: number) => (number < min ? min : number > max ? max : number)
 
 export default App

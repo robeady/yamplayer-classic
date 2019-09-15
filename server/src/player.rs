@@ -1,10 +1,9 @@
-use crate::api::Event::{PlaybackPaused, PlaybackResumed, VolumeChanged};
+use crate::api::Event::{PlaybackChanged, VolumeChanged};
 use crate::api::{Event, EventSink};
 use crate::errors::Try;
 use crate::library::{Track, TrackId};
 use crate::playback;
-use crate::playback::PlaybackSource;
-use crate::queue::{QueueEvent, QueueEventSink};
+use crate::queue::{Queue, QueueCallback};
 use log;
 use parking_lot::Mutex;
 use rodio::decoder::Decoder;
@@ -13,41 +12,42 @@ use std::io::{Cursor, Read};
 use std::sync::Arc;
 
 pub struct PlayerApp {
-    source: Arc<Mutex<PlaybackSource<EventAdapter>>>,
+    queue: Arc<Mutex<Queue<f32, QueueCallbackHandler>>>,
     event_sink: Arc<EventSink>,
 }
 
-struct EventAdapter {
+struct QueueCallbackHandler {
     event_sink: Arc<EventSink>,
 }
 
-impl QueueEventSink for EventAdapter {
-    fn accept(&self, event: QueueEvent) {
-        self.event_sink.broadcast(&match event {
-            QueueEvent::TrackChanged(t) => Event::PlayingTrackChanged(t),
-        })
+impl QueueCallback<f32> for QueueCallbackHandler {
+    fn on_current_track_changed(&self, queue: &Queue<f32, Self>) {
+        self.event_sink.broadcast(&Event::PlaybackChanged {
+            paused: queue.controls.paused,
+            current_track: queue.current_track(),
+        });
     }
 }
 
 impl PlayerApp {
     pub fn new(event_sink: Arc<EventSink>) -> Try<PlayerApp> {
-        let adapter = EventAdapter {
+        let callback = QueueCallbackHandler {
             event_sink: Arc::clone(&event_sink),
         };
-        let source = playback::establish(adapter);
-        Ok(PlayerApp { source, event_sink })
+        let queue = playback::establish(callback);
+        Ok(PlayerApp { queue, event_sink })
     }
 
     pub fn unmuted_volume(&self) -> f32 {
-        self.source.lock().controls.volume
+        self.queue.lock().controls.volume
     }
 
     pub fn muted(&self) -> bool {
-        self.source.lock().controls.muted
+        self.queue.lock().controls.muted
     }
 
     pub fn update_volume(&self, volume: Option<f32>, muted: Option<bool>) {
-        let mut source = self.source.lock();
+        let mut source = self.queue.lock();
         if let Some(new_volume) = volume {
             source.controls.volume = new_volume;
         }
@@ -60,29 +60,34 @@ impl PlayerApp {
         })
     }
 
-    pub fn toggle_pause(&self) {
-        let mut source = self.source.lock();
-        // TODO: is zero a sensible default?
-        let position_secs = source
-            .queue
-            .current_track_played_duration_secs()
-            .unwrap_or(0.0);
-        if source.controls.paused {
-            source.controls.paused = false;
-            self.event_sink
-                .broadcast(&PlaybackResumed { position_secs })
-        } else {
+    pub fn unpause(&self) {
+        let mut queue = self.queue.lock();
+        if queue.controls.paused {
+            queue.controls.paused = false;
+            self.event_sink.broadcast(&PlaybackChanged {
+                paused: false,
+                current_track: queue.current_track(),
+            })
+        }
+    }
+
+    pub fn pause(&self) {
+        let mut source = self.queue.lock();
+        if !source.controls.paused {
             source.controls.paused = true;
-            self.event_sink.broadcast(&PlaybackPaused { position_secs })
+            self.event_sink.broadcast(&PlaybackChanged {
+                paused: true,
+                current_track: source.current_track(),
+            })
         }
     }
 
     pub fn paused(&self) -> bool {
-        self.source.lock().controls.paused
+        self.queue.lock().controls.paused
     }
 
     pub fn skip_to_next(&self) {
-        self.source.lock().queue.skip_current();
+        self.queue.lock().skip_current();
     }
 
     pub fn add_to_queue(&self, track_id: TrackId, track: &Track) -> Try<()> {
@@ -95,15 +100,14 @@ impl PlayerApp {
             track.duration_secs as i64 / 60,
             track.duration_secs as i64 % 60
         );
-        self.source
+        self.queue
             .lock()
-            .queue
             .enqueue_last(track_id, track.duration_secs, Box::new(source));
         Ok(())
     }
 
     pub fn empty_queue(&self) {
-        self.source.lock().queue.clear();
+        self.queue.lock().clear();
     }
 }
 

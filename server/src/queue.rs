@@ -1,5 +1,4 @@
 use crate::library::TrackId;
-use crate::queue::QueueEvent::TrackChanged;
 use crate::serde::number_string;
 use cpal::Format;
 use rodio::source::UniformSourceIterator;
@@ -7,33 +6,43 @@ use rodio::{Sample, Source};
 use serde_derive::Serialize;
 use std::collections::VecDeque;
 
-pub struct Queue<S, E> {
+pub struct Queue<S, C> {
     tracks: VecDeque<QueueItem<S>>,
     next_entry_marker: u64,
     audio_format: Format,
-    event_sink: E,
+    callback: C,
+    pub controls: PlaybackControls,
 }
 
-pub trait QueueEventSink {
-    fn accept(&self, event: QueueEvent);
+pub struct PlaybackControls {
+    pub paused: bool,
+    pub muted: bool,
+    pub volume: f32,
 }
 
-pub enum QueueEvent {
-    /// a different track is now playing (or if None, the queue is now empty)
-    TrackChanged(Option<EnqueuedTrack>),
+pub trait QueueCallback<S>
+where
+    Self: Sized,
+{
+    fn on_current_track_changed(&self, queue: &Queue<S, Self>);
 }
 
-impl<S, E> Queue<S, E>
+impl<S, C> Queue<S, C>
 where
     S: Sample + Send + 'static,
-    E: QueueEventSink,
+    C: QueueCallback<S>,
 {
-    pub fn new(audio_format: Format, event_sink: E) -> Self {
+    pub fn new(initial_volume: f32, audio_format: Format, callback: C) -> Self {
         Queue {
             tracks: VecDeque::new(),
             next_entry_marker: 0,
             audio_format,
-            event_sink,
+            callback,
+            controls: PlaybackControls {
+                paused: false,
+                muted: false,
+                volume: initial_volume,
+            },
         }
     }
 
@@ -100,8 +109,7 @@ where
     }
 
     fn raise_track_changed(&self) {
-        self.event_sink
-            .accept(TrackChanged(self.tracks.get(0).map(|t| t.track)));
+        self.callback.on_current_track_changed(self);
     }
 
     // returns true iff the item was in the queue
@@ -123,23 +131,16 @@ where
         self.tracks.iter().map(|t| &t.track)
     }
 
-    pub fn current_track_played_duration_secs(&self) -> Option<f32> {
-        self.tracks.get(0).map(|t| {
-            t.audio_source.samples_played as f32
+    pub fn current_track(&self) -> Option<CurrentTrack> {
+        self.tracks.get(0).map(|t| CurrentTrack {
+            track: t.track,
+            position_secs: t.audio_source.samples_played as f32
                 / self.audio_format.channels as f32
-                / self.audio_format.sample_rate.0 as f32
+                / self.audio_format.sample_rate.0 as f32,
         })
     }
-}
 
-impl<S, F> Iterator for Queue<S, F>
-where
-    S: Sample + Send + 'static,
-    F: QueueEventSink,
-{
-    type Item = S;
-
-    fn next(&mut self) -> Option<S> {
+    fn next_sample(&mut self) -> Option<S> {
         if let Some(track) = self.tracks.get_mut(0) {
             if let Some(sample) = track.audio_source.next() {
                 Some(sample)
@@ -148,11 +149,37 @@ where
                 self.tracks.pop_front();
                 self.raise_track_changed();
                 // recurse now that current_source is updated
-                self.next()
+                self.next_sample()
             }
         } else {
             // no current source, play silence
             Some(Sample::zero_value())
+        }
+    }
+}
+
+#[derive(Serialize)]
+pub struct CurrentTrack {
+    track: EnqueuedTrack,
+    position_secs: f32,
+}
+
+impl<S, C> Iterator for Queue<S, C>
+where
+    S: Sample + Send + 'static,
+    C: QueueCallback<S>,
+{
+    type Item = S;
+
+    fn next(&mut self) -> Option<S> {
+        if self.controls.paused {
+            Some(Sample::zero_value())
+        } else if self.controls.muted {
+            self.next_sample();
+            Some(Sample::zero_value())
+        } else {
+            self.next_sample()
+                .map(|sample| sample.amplify(self.controls.volume))
         }
     }
 }

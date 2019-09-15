@@ -1,60 +1,13 @@
-use crate::queue::{Queue, QueueEventSink};
+use crate::queue::{Queue, QueueCallback};
 use cpal::traits::{DeviceTrait, EventLoopTrait, HostTrait};
-use cpal::{Format, SampleFormat};
 use parking_lot::Mutex;
 use rodio::Sample;
 use std::sync::Arc;
 use std::thread;
 
-pub struct PlaybackSource<E> {
-    pub queue: Queue<f32, E>,
-    pub controls: PlaybackControls,
-}
-
-impl<E: QueueEventSink> PlaybackSource<E> {
-    fn new(volume: f32, audio_format: Format, event_sink: E) -> Self {
-        assert_eq!(
-            audio_format.data_type,
-            SampleFormat::F32,
-            "Only f32 samples supported"
-        );
-        PlaybackSource {
-            queue: Queue::new(audio_format, event_sink),
-            controls: PlaybackControls {
-                paused: false,
-                muted: false,
-                volume,
-            },
-        }
-    }
-}
-
-impl<E: QueueEventSink> Iterator for PlaybackSource<E> {
-    type Item = f32;
-
-    fn next(&mut self) -> Option<f32> {
-        if self.controls.paused {
-            Some(Sample::zero_value())
-        } else if self.controls.muted {
-            self.queue.next();
-            Some(Sample::zero_value())
-        } else {
-            self.queue
-                .next()
-                .map(|sample| sample.amplify(self.controls.volume))
-        }
-    }
-}
-
-pub struct PlaybackControls {
-    pub paused: bool,
-    pub muted: bool,
-    pub volume: f32,
-}
-
-pub fn establish<E>(event_sink: E) -> Arc<Mutex<PlaybackSource<E>>>
+pub fn establish<C>(queue_callback: C) -> Arc<Mutex<Queue<f32, C>>>
 where
-    E: QueueEventSink + Send + 'static,
+    C: QueueCallback<f32> + Send + 'static,
 {
     let host = cpal::default_host();
     let event_loop = host.event_loop();
@@ -76,8 +29,8 @@ where
         .expect("failed to play audio stream");
 
     let volume = 0.5f32;
-    let source = Arc::new(Mutex::new(PlaybackSource::new(volume, format, event_sink)));
-    let source_for_audio_thread = Arc::clone(&source);
+    let queue = Arc::new(Mutex::new(Queue::new(volume, format, queue_callback)));
+    let queue_for_audio_thread = Arc::clone(&queue);
 
     thread::Builder::new()
         .name("audio thread".to_string())
@@ -90,12 +43,12 @@ where
                         return;
                     }
                 };
-                audio_callback(stream_data, &source_for_audio_thread)
+                audio_callback(stream_data, &queue_for_audio_thread)
             });
         })
         .expect("error spawning audio thread");
 
-    source
+    queue
 }
 
 fn audio_callback(stream_data: cpal::StreamData, audio_source: &Mutex<impl Iterator<Item = f32>>) {
