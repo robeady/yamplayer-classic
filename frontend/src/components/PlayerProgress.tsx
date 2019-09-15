@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react"
 import { PlaybackTiming } from "../Model"
 import Slider from "@material-ui/core/Slider"
+import { FlexDiv } from "./common"
+import { css } from "linaria"
 
 export const PlayerProgress = (props: PlaybackTiming) => {
     const [currentTimestampOffsetMillis, setCurrentTimestampOffsetMillis] = useState(performance.now())
@@ -32,9 +34,13 @@ export const PlayerProgress = (props: PlaybackTiming) => {
 export const NoPlayerProgress = () => <PlayerProgressRaw currentSecs={null} totalSecs={null} />
 
 const PlayerProgressRaw = (props: { currentSecs: number | null; totalSecs: number | null }) => (
-    <div className="progress">
+    <FlexDiv>
         <Time secs={props.currentSecs} />
-        <div className="progressBar">
+        <div
+            className={css`
+                width: 40rem;
+                padding: 0 1rem;
+            `}>
             <Slider
                 min={0}
                 max={1}
@@ -43,7 +49,7 @@ const PlayerProgressRaw = (props: { currentSecs: number | null; totalSecs: numbe
             />
         </div>
         <Time secs={props.totalSecs} />
-    </div>
+    </FlexDiv>
 )
 
 const Time = (props: { secs: number | null }) => {
