@@ -11,6 +11,7 @@ use std::sync::Arc;
 
 pub struct Library {
     tracks: BTreeMap<TrackId, Track>,
+    playlists: BTreeMap<PlaylistId, Playlist>,
     event_sink: Arc<EventSink>,
 }
 
@@ -18,6 +19,7 @@ impl Library {
     pub fn new(event_sink: Arc<EventSink>) -> Library {
         Library {
             tracks: BTreeMap::new(),
+            playlists: BTreeMap::new(),
             event_sink,
         }
     }
@@ -25,6 +27,16 @@ impl Library {
     fn next_track_id(&self) -> TrackId {
         TrackId(
             self.tracks
+                .iter()
+                .next_back()
+                .map(|(id, _)| id.0 + 1)
+                .unwrap_or(0),
+        )
+    }
+
+    fn next_playlist_id(&self) -> PlaylistId {
+        PlaylistId(
+            self.playlists
                 .iter()
                 .next_back()
                 .map(|(id, _)| id.0 + 1)
@@ -118,10 +130,41 @@ impl Library {
     pub fn get_track(&self, id: TrackId) -> Option<&Track> {
         self.tracks.get(&id)
     }
+
+    pub fn create_playlist(&mut self, name: String) -> PlaylistId {
+        let playlist_id = self.next_playlist_id();
+        self.playlists.insert(
+            playlist_id,
+            Playlist {
+                name,
+                tracks: Vec::new(),
+            },
+        );
+        playlist_id
+    }
+
+    pub fn add_track_to_playlist(&mut self, track_id: TrackId, playlist_id: PlaylistId) -> Try<()> {
+        self.tracks
+            .get(&track_id)
+            .ok_or_else(|| string_err(format!("Unknown track {}", track_id.0)))?;
+        self.playlists
+            .get_mut(&playlist_id)
+            .ok_or_else(|| string_err(format!("Unknown playlist {}", playlist_id.0)))?
+            .tracks
+            .push(track_id);
+        Ok(())
+    }
+
+    pub fn get_playlist(&self, id: PlaylistId) -> Option<&Playlist> {
+        self.playlists.get(&id)
+    }
 }
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize)]
 pub struct TrackId(#[serde(with = "number_string")] pub u64);
+
+#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize)]
+pub struct PlaylistId(#[serde(with = "number_string")] pub u64);
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Track {
@@ -130,4 +173,15 @@ pub struct Track {
     pub artist: String,
     pub album: String,
     pub duration_secs: f32,
+}
+
+pub struct Playlist {
+    pub name: String,
+    tracks: Vec<TrackId>,
+}
+
+impl Playlist {
+    fn tracks(&self) -> impl Iterator<Item = TrackId> + '_ {
+        self.tracks.iter().map(|tid| *tid)
+    }
 }
