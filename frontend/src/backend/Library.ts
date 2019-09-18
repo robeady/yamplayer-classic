@@ -111,9 +111,4 @@ export class Library {
             this.tracks.set(tid, track)
         }
     }
-
-    @action
-    private populatePlaylistTrackIds = (playlistId: string, response: { name: string; track_ids: string[] } | null) => {
-        this.playlistTrackIds.set(playlistId, (response && response.track_ids) || [])
-    }
 }

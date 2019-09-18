@@ -39,7 +39,7 @@ const App = () => (
             className={css`
                 grid-area: leftNav;
                 background: #eee;
-                padding: 1rem;
+                padding: 1.5rem;
             `}>
             <Navigation />
         </nav>
