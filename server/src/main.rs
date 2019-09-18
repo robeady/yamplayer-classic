@@ -5,6 +5,7 @@ mod bootstrap;
 mod errors;
 mod file_completions;
 mod http;
+mod ids;
 mod library;
 mod playback;
 mod player;

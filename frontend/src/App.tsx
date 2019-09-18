@@ -1,23 +1,21 @@
-import React from "react"
+import React, { ReactElement } from "react"
 import PlayArrow from "@material-ui/icons/PlayArrow"
 import Pause from "@material-ui/icons/Pause"
 import SkipNext from "@material-ui/icons/SkipNext"
 import SkipPrevious from "@material-ui/icons/SkipPrevious"
 import VolumeDown from "@material-ui/icons/VolumeDown"
 import VolumeUp from "@material-ui/icons/VolumeUp"
+import QueueMusic from "@material-ui/icons/QueueMusic"
 import VolumeMute from "@material-ui/icons/VolumeMute"
 import Slider from "@material-ui/core/Slider"
 import { observer } from "mobx-react-lite"
 import { Track } from "./Model"
 import { useBackend } from "./backend/backend"
 import { css } from "linaria"
+import { styled } from "linaria/react"
 import { NoPlayerProgress, PlayerProgress } from "./components/PlayerProgress"
-import { configure } from "mobx"
 import { FlexDiv } from "./components/common"
-configure({
-    computedRequiresReaction: true,
-    enforceActions: "observed",
-})
+import { useUI } from "./ui-state"
 
 const App = () => (
     <div
@@ -41,8 +39,9 @@ const App = () => (
             className={css`
                 grid-area: leftNav;
                 background: #eee;
+                padding: 1rem;
             `}>
-            navigation links go here
+            <Navigation />
         </nav>
         <main
             className={css`
@@ -54,8 +53,62 @@ const App = () => (
     </div>
 )
 
+const Navigation = observer(() => {
+    const { library } = useBackend()
+    const ui = useUI()
+    const NavList = styled.ol`
+        list-style: none;
+        margin: 0;
+        padding-left: 0;
+    `
+    return (
+        <>
+            <h3>Playlists</h3>
+            <NavList>
+                <NavListItem
+                    name="Library"
+                    id="library"
+                    onClick={() => (ui.listing = "library")}
+                    icon={<QueueMusic />}
+                />
+                {(library.listPlaylists() || []).map(p => (
+                    <NavListItem
+                        name={p.name}
+                        id={p.id}
+                        onClick={() => (ui.listing = { playlistId: p.id })}
+                        icon={<QueueMusic />}
+                    />
+                ))}
+            </NavList>
+        </>
+    )
+})
+
+const NavListItem = (props: { id: string; onClick: () => void; name: string; icon: ReactElement }) => {
+    return (
+        <li
+            className={css`
+                display: flex;
+                padding: 0.25rem 0;
+            `}
+            key={props.id}>
+            {props.icon}
+            <span
+                className={css`
+                    margin-left: 0.3rem;
+                    cursor: pointer;
+                `}
+                onClick={props.onClick}>
+                {props.name}
+            </span>
+        </li>
+    )
+}
+
 const TrackList = observer(() => {
     const { library, playback } = useBackend()
+    const ui = useUI()
+    const tracks = ui.listing === "library" ? library.getLibrary() : library.listPlaylistTracks(ui.listing.playlistId)
     return (
         <div>
             <ol
@@ -63,7 +116,7 @@ const TrackList = observer(() => {
                     margin: 0;
                     padding-left: 0;
                 `}>
-                {Object.values(library.getLibrary() || {}).map(t => (
+                {(tracks || []).map(t => (
                     <TrackRow track={t} enqueue={() => playback.enqueue(t.id)} />
                 ))}
             </ol>
@@ -170,28 +223,28 @@ const PlaybackControls = (props: {
         <div>
             <SkipPrevious
                 className={css`
-                    font-size: 2rem;
+                    font-size: 2rem !important;
                 `}
             />
             {props.playing ? (
                 <Pause
                     onClick={props.onPause}
                     className={css`
-                        font-size: 3rem;
+                        font-size: 3rem !important;
                     `}
                 />
             ) : (
                 <PlayArrow
                     onClick={props.onUnpause}
                     className={css`
-                        font-size: 3rem;
+                        font-size: 3rem !important;
                     `}
                 />
             )}
             <SkipNext
                 onClick={props.onNext}
                 className={css`
-                    font-size: 2rem;
+                    font-size: 2rem !important;
                 `}
             />
         </div>

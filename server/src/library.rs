@@ -1,6 +1,6 @@
 use crate::api::EventSink;
-use crate::errors::{string_err, Try};
-use crate::serde::number_string;
+use crate::errors::{string_err, Erro, Try};
+use crate::ids::{PlaylistId, TrackId};
 use id3::Tag;
 use log;
 use serde_derive::{Deserialize, Serialize};
@@ -123,7 +123,7 @@ impl Library {
         Ok(track_id)
     }
 
-    pub fn list_tracks(&self) -> impl Iterator<Item = (TrackId, &Track)> {
+    pub fn tracks(&self) -> impl Iterator<Item = (TrackId, &Track)> {
         self.tracks.iter().map(|(id, t)| (*id, t))
     }
 
@@ -137,7 +137,7 @@ impl Library {
             playlist_id,
             Playlist {
                 name,
-                tracks: Vec::new(),
+                track_ids: Vec::new(),
             },
         );
         playlist_id
@@ -150,7 +150,7 @@ impl Library {
         self.playlists
             .get_mut(&playlist_id)
             .ok_or_else(|| string_err(format!("Unknown playlist {}", playlist_id.0)))?
-            .tracks
+            .track_ids
             .push(track_id);
         Ok(())
     }
@@ -158,13 +158,11 @@ impl Library {
     pub fn get_playlist(&self, id: PlaylistId) -> Option<&Playlist> {
         self.playlists.get(&id)
     }
+
+    pub fn playlists(&self) -> impl Iterator<Item = (PlaylistId, &Playlist)> {
+        self.playlists.iter().map(|(id, p)| (*id, p))
+    }
 }
-
-#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize)]
-pub struct TrackId(#[serde(with = "number_string")] pub u64);
-
-#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize)]
-pub struct PlaylistId(#[serde(with = "number_string")] pub u64);
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Track {
@@ -175,13 +173,14 @@ pub struct Track {
     pub duration_secs: f32,
 }
 
+#[derive(Serialize)]
 pub struct Playlist {
     pub name: String,
-    tracks: Vec<TrackId>,
+    track_ids: Vec<TrackId>,
 }
 
 impl Playlist {
     fn tracks(&self) -> impl Iterator<Item = TrackId> + '_ {
-        self.tracks.iter().map(|tid| *tid)
+        self.track_ids.iter().map(|tid| *tid)
     }
 }
