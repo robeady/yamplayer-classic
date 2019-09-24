@@ -15,47 +15,53 @@ import { css } from "linaria"
 import { styled } from "linaria/react"
 import { NoPlayerProgress, PlayerProgress } from "./components/PlayerProgress"
 import { FlexDiv } from "./components/common"
-import { useUI } from "./ui-state"
+import { BrowserRouter, Route } from "react-router-dom"
+import { A } from "./components/A"
 
 const App = () => (
-    <div
-        className={css`
-            height: 100vh;
-            display: grid;
-            grid-template-areas:
-                "nowPlaying nowPlaying"
-                "leftNav main";
-            grid-template-columns: 200px auto;
-            grid-template-rows: 100px auto;
-        `}>
+    <BrowserRouter>
         <div
             className={css`
-                grid-area: nowPlaying;
-                background: #ddd;
+                height: 100vh;
+                display: grid;
+                grid-template-areas:
+                    "nowPlaying nowPlaying"
+                    "leftNav main";
+                grid-template-columns: 200px auto;
+                grid-template-rows: 100px auto;
             `}>
-            <NowPlaying />
+            <div
+                className={css`
+                    grid-area: nowPlaying;
+                    background: #ddd;
+                `}>
+                <NowPlaying />
+            </div>
+            <nav
+                className={css`
+                    grid-area: leftNav;
+                    background: #eee;
+                    padding: 1.5rem;
+                `}>
+                <Navigation />
+            </nav>
+            <main
+                className={css`
+                    grid-area: main;
+                    padding: 2rem;
+                `}>
+                <Route path="/" exact render={() => <TrackList listing="library" />} />
+                <Route
+                    path="/playlists/:id"
+                    render={props => <TrackList listing={{ playlistId: props.match.params.id }} />}
+                />
+            </main>
         </div>
-        <nav
-            className={css`
-                grid-area: leftNav;
-                background: #eee;
-                padding: 1.5rem;
-            `}>
-            <Navigation />
-        </nav>
-        <main
-            className={css`
-                grid-area: main;
-                padding: 2rem;
-            `}>
-            <TrackList />
-        </main>
-    </div>
+    </BrowserRouter>
 )
 
 const Navigation = observer(() => {
     const { library } = useBackend()
-    const ui = useUI()
     const NavList = styled.ol`
         list-style: none;
         margin: 0;
@@ -65,26 +71,16 @@ const Navigation = observer(() => {
         <>
             <h3>Playlists</h3>
             <NavList>
-                <NavListItem
-                    name="Library"
-                    id="library"
-                    onClick={() => (ui.listing = "library")}
-                    icon={<QueueMusic />}
-                />
+                <NavListItem name="Library" id="library" linkTo="/" icon={<QueueMusic />} />
                 {(library.listPlaylists() || []).map(p => (
-                    <NavListItem
-                        name={p.name}
-                        id={p.id}
-                        onClick={() => (ui.listing = { playlistId: p.id })}
-                        icon={<QueueMusic />}
-                    />
+                    <NavListItem name={p.name} id={p.id} linkTo={`/playlists/${p.id}`} icon={<QueueMusic />} />
                 ))}
             </NavList>
         </>
     )
 })
 
-const NavListItem = (props: { id: string; onClick: () => void; name: string; icon: ReactElement }) => {
+const NavListItem = (props: { id: string; linkTo: string; name: string; icon: ReactElement }) => {
     return (
         <li
             className={css`
@@ -93,22 +89,21 @@ const NavListItem = (props: { id: string; onClick: () => void; name: string; ico
             `}
             key={props.id}>
             {props.icon}
-            <span
+            <A
                 className={css`
                     margin-left: 0.3rem;
-                    cursor: pointer;
                 `}
-                onClick={props.onClick}>
+                to={props.linkTo}>
                 {props.name}
-            </span>
+            </A>
         </li>
     )
 }
 
-const TrackList = observer(() => {
+const TrackList = observer((props: { listing: "library" | { playlistId: string } }) => {
     const { library, playback } = useBackend()
-    const ui = useUI()
-    const tracks = ui.listing === "library" ? library.getLibrary() : library.listPlaylistTracks(ui.listing.playlistId)
+    const tracks =
+        props.listing === "library" ? library.getLibrary() : library.listPlaylistTracks(props.listing.playlistId)
     return (
         <div>
             <ol
