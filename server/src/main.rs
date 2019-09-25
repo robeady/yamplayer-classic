@@ -4,6 +4,7 @@ mod api;
 mod bootstrap;
 mod errors;
 mod file_completions;
+mod deezer_client;
 mod http;
 mod ids;
 mod library;

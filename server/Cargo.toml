@@ -26,6 +26,7 @@ tokio-threadpool = "0.1"
 id3 = "0.3.0"
 cpal = "0.10"
 minimp3 = "0.3.2"
+reqwest = "0.9.20"
 
 # optimise dependencies in dev build
 [profile.dev.overrides."*"]
