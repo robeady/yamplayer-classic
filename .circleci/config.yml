@@ -13,13 +13,15 @@ jobs:
       - run: |
           rustup toolchain install nightly-2019-09-13
           rustup default nightly-2019-09-13
+          rustup component add clippy
       # building cpal on linux requires ALSA development files
       - run: sudo apt-get update && sudo apt-get install -y libasound2-dev
       - run: |
           rustc --version --verbose
           cargo --version --verbose
-          cargo build --verbose --manifest-path=server/Cargo.toml
-      - run: cargo test --verbose --manifest-path=server/Cargo.toml
+      - run: cargo clippy-preview -Z unstable-options --manifest-path=server/Cargo.toml
+      - run: cargo build --manifest-path=server/Cargo.toml
+      - run: cargo test --manifest-path=server/Cargo.toml
       - run: pnpm install --frozen-lockfile --prefix frontend
       - run: pnpm run build --prefix frontend
       - run: pnpm test --prefix frontend
