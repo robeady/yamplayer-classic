@@ -7,12 +7,12 @@ jobs:
       - checkout
       - restore_cache:
           keys:
-            - build-cache-{{ checksum "server/Cargo.lock" }}-{{ checksum "server/Cargo.toml" }}-nightly-2019-09-13
+            - build-cache-{{ checksum "server/Cargo.lock" }}-{{ checksum "server/Cargo.toml" }}-nightly-2019-10-19
             - build-cache
       - run: sudo npm install -g pnpm
       - run: |
-          rustup toolchain install nightly-2019-09-13
-          rustup default nightly-2019-09-13
+          rustup toolchain install nightly-2019-10-19
+          rustup default nightly-2019-10-19
           rustup component add clippy
       # building cpal on linux requires ALSA development files
       - run: sudo apt-get update && sudo apt-get install -y libasound2-dev
@@ -26,7 +26,7 @@ jobs:
       - run: pnpm run build --prefix frontend
       - run: pnpm test --prefix frontend
       - save_cache:
-          key: build-cache-{{ checksum "server/Cargo.lock" }}-{{ checksum "server/Cargo.toml" }}-nightly-2019-09-13
+          key: build-cache-{{ checksum "server/Cargo.lock" }}-{{ checksum "server/Cargo.toml" }}-nightly-2019-10-19
           paths:
             - "~/.cargo"
             - "./server/target"
