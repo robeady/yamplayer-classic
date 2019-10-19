@@ -1,6 +1,6 @@
 import { observable, action } from "mobx"
 import { Track } from "../Model"
-import { ServerApi, ServerEvent } from "./ServerApi"
+import { ServerApi, ServerEvent, SearchResults } from "./ServerApi"
 import { iterate } from "iterare"
 import { sortBy } from "lodash"
 
@@ -110,5 +110,17 @@ export class Library {
         for (const [tid, track] of Object.entries(newTracksById)) {
             this.tracks.set(tid, track)
         }
+    }
+
+    @observable private searchResults = new Map<string, SearchResults | "loading">()
+
+    getSearchResults = (query: string): SearchResults | "loading" => {
+        if (this.searchResults.get(query) === undefined) {
+            // TODO: don't keep all search results ever in memory.
+            // this should be an expring cache or hold only the last search
+            this.searchResults.set(query, "loading")
+            this.serverApi.request("Search", { query }).then(r => this.searchResults.set(query, r))
+        }
+        return this.searchResults.get(query)!
     }
 }

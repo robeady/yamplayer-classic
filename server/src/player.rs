@@ -1,8 +1,8 @@
 use crate::api::Event::{PlaybackChanged, VolumeChanged};
 use crate::api::{Event, EventSink};
 use crate::errors::Try;
-use crate::ids::TrackId;
 use crate::library::Track;
+use crate::model::TrackId;
 use crate::playback;
 use crate::queue::{Queue, QueueCallback};
 use log;

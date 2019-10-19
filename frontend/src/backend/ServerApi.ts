@@ -1,5 +1,5 @@
 import { RPCWebSocket, Payload } from "../websocket"
-import { Track } from "../Model"
+import { Track, AlbumInfo, ArtistInfo, TrackInfo } from "../Model"
 
 interface ServerRPCApi {
     (type: "Enqueue", args: { track_id: string }): Promise<void>
@@ -15,6 +15,25 @@ interface ServerRPCApi {
     (type: "GetPlaybackState"): Promise<{ playing: boolean; volume: number }>
     (type: "ListPlaylists"): Promise<{ playlists: { id: string; name: string }[] }>
     (type: "GetPlaylist", args: { id: string }): Promise<{ name: string; track_ids: string[] } | null>
+    (type: "Search", args: { query: string }): Promise<SearchResults>
+}
+
+export interface SearchResults {
+    tracks: TrackSearchResult[]
+    albums: SearchResult<AlbumInfo>[]
+    artists: SearchResult<ArtistInfo>[]
+}
+
+export interface SearchResult<T> {
+    library_id: string
+    external_id: string
+    info: T
+}
+
+export interface TrackSearchResult {
+    track: SearchResult<TrackInfo>
+    album: SearchResult<AlbumInfo>
+    artist: SearchResult<ArtistInfo>
 }
 
 type ServerEventHandler = (e: ServerEvent) => void

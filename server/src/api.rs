@@ -1,15 +1,21 @@
-use crate::errors::{string_err, Erro, Try};
+use self::search::SearchResults;
+use crate::deezer::client::DeezerClient;
+use crate::errors::Erro;
 use crate::file_completions::complete_file_path;
-use crate::ids::{PlaylistId, TrackId};
 use crate::library::{self, Library};
+use crate::model::{PlaylistId, TrackId};
 use crate::player::PlayerApp;
 use crate::queue::CurrentTrack;
+use anyhow::anyhow;
+use fstrings::{f, format_args_f};
 use parking_lot::{Mutex, RwLock};
 use serde_derive::{Deserialize, Serialize};
 use slotmap::{DenseSlotMap, Key};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::convert::Into;
 use std::sync::Arc;
+
+pub mod search;
 
 pub struct App {
     pub player: PlayerApp,
@@ -46,11 +52,15 @@ pub enum Request {
     GetPlaylist {
         id: String,
     },
+    Search {
+        query: String,
+    },
 }
 
 impl App {
     pub fn handle_request(&self, request: &Request) -> Response {
         use Request::*;
+        #[allow(clippy::unit_arg)]
         match request {
             Enqueue { track_id } => self.enqueue(track_id),
             Stop => self.player.empty_queue().and_done(),
@@ -65,6 +75,7 @@ impl App {
             GetPlaybackState => self.get_playback_state(),
             ListPlaylists => self.list_playlists(),
             GetPlaylist { ref id } => ok(&self.library.lock().get_playlist(id.parse()?)),
+            Search { ref query } => self.search(query),
         }
     }
 
@@ -73,7 +84,7 @@ impl App {
         let lib = self.library.lock();
         let track = lib
             .get_track(track_id)
-            .ok_or_else(|| string_err(format!("Unknown track {}", track_id.0)))?;
+            .ok_or_else(|| anyhow!("Unknown track {}", track_id.0))?;
         log::info!("enqueueing track {} from {}", track_id.0, track.file_path);
         self.player.add_to_queue(track_id, &track)?;
         done()
@@ -141,6 +152,11 @@ impl App {
             completions: complete_file_path(prefix)?,
         })
     }
+
+    fn search(&self, query: &str) -> Response {
+        let results = DeezerClient::new().search(query)?;
+        ok(&self.library.lock().resolve(results))
+    }
 }
 
 impl<'a> From<(TrackId, &'a library::Track)> for Track<'a> {
@@ -183,11 +199,16 @@ fn payload(data: &impl serde::Serialize) -> Payload {
     }
 }
 
+//#[derive(Serialize)]
+//struct ErrorPayload {
+//    message: String,
+//    trace: Backt,
+//}
+
 impl From<Erro> for Payload {
     fn from(e: Erro) -> Self {
-        match e {
-            Erro::StringError(s) => payload(&s),
-        }
+        // debug print the error
+        payload(&f!("{e:?}"))
     }
 }
 

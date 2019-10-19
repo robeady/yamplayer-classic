@@ -1,13 +1,16 @@
+#![deny(clippy::all)]
+// TODO: enable pedantic
+
 use crate::errors::Try;
 
 mod api;
 mod bootstrap;
+mod deezer;
 mod errors;
 mod file_completions;
-mod deezer_client;
 mod http;
-mod ids;
 mod library;
+mod model;
 mod playback;
 mod player;
 mod queue;

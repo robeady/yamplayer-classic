@@ -1,4 +1,5 @@
-use crate::errors::{string_err, Try};
+use crate::errors::Try;
+use anyhow::anyhow;
 use std::path::Path;
 
 pub fn complete_file_path(prefix: &str) -> Try<Vec<String>> {
@@ -12,7 +13,7 @@ pub fn complete_file_path(prefix: &str) -> Try<Vec<String>> {
         let name = file?
             .file_name()
             .into_string()
-            .map_err(|s| string_err(format!("invalid file name {:?}", s)))?;
+            .map_err(|s| anyhow!("invalid file name {:?}", s))?;
         if name.starts_with(prefix) {
             result.push([directory, &name].concat())
         }

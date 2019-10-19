@@ -12,3 +12,20 @@ export interface PlaybackTiming {
     playingSinceTimestamp: number | "paused"
     positionSecsAtTimestamp: number
 }
+
+export interface TrackInfo {
+    title: string
+    isrc: string | null
+    duration_secs: number
+}
+
+export interface ArtistInfo {
+    name: string
+    image_url: string
+}
+
+export interface AlbumInfo {
+    title: string
+    cover_image_url: string
+    release_date: string | null
+}

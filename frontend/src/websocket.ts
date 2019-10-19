@@ -41,7 +41,8 @@ export class RPCWebSocket {
                 this.outstanding[id].onSuccess(parsed[1])
             } else {
                 // TODO: more sensible error reporting
-                this.outstanding[id].onFailure(new Error("Server error: " + JSON.stringify(error)))
+                const msg = typeof error === "string" ? error : JSON.stringify(error)
+                this.outstanding[id].onFailure(new Error("Server error: " + msg))
             }
             delete this.outstanding[id]
         }

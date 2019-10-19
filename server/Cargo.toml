@@ -27,7 +27,11 @@ id3 = "0.3.0"
 cpal = "0.10"
 minimp3 = "0.3.2"
 reqwest = "0.9.20"
+url = { version = "2.1.0", features = ["serde"] }
+chrono = { version= "0.4.9", features = ["serde"] }
+fstrings = "0.1.4"
+anyhow = "1.0.15"
 
 # optimise dependencies in dev build
-[profile.dev.overrides."*"]
+[profile.dev.package."*"]
 opt-level = 3

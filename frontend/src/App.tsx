@@ -16,48 +16,58 @@ import { styled } from "linaria/react"
 import { NoPlayerProgress, PlayerProgress } from "./components/PlayerProgress"
 import { FlexDiv } from "./components/common"
 import { BrowserRouter, Route } from "react-router-dom"
-import { A } from "./components/A"
+import { NavLink } from "./components/links"
+import { SearchBox, SearchResultsScreen } from "./components/search"
+import { ThemeProvider } from "emotion-theming"
+import { THEME } from "./styling"
 
 const App = () => (
-    <BrowserRouter>
-        <div
-            className={css`
-                height: 100vh;
-                display: grid;
-                grid-template-areas:
-                    "nowPlaying nowPlaying"
-                    "leftNav main";
-                grid-template-columns: 200px auto;
-                grid-template-rows: 100px auto;
-            `}>
+    <ThemeProvider theme={THEME}>
+        <BrowserRouter>
             <div
                 className={css`
-                    grid-area: nowPlaying;
-                    background: #ddd;
+                    height: 100vh;
+                    display: grid;
+                    grid-template-areas:
+                        "nowPlaying nowPlaying"
+                        "leftNav main";
+                    grid-template-columns: 200px auto;
+                    grid-template-rows: 100px auto;
                 `}>
-                <NowPlaying />
+                <div
+                    className={css`
+                        grid-area: nowPlaying;
+                        background: #ddd;
+                    `}>
+                    <NowPlaying />
+                </div>
+                <nav
+                    className={css`
+                        grid-area: leftNav;
+                        background: #eee;
+                        padding: 1.5rem;
+                    `}>
+                    <SearchBox />
+                    <Navigation />
+                </nav>
+                <main
+                    className={css`
+                        grid-area: main;
+                        padding: 2rem;
+                    `}>
+                    <Route path="/" exact render={() => <TrackList listing="library" />} />
+                    <Route
+                        path="/playlists/:id"
+                        render={props => <TrackList listing={{ playlistId: props.match.params.id }} />}
+                    />
+                    <Route
+                        path="/search/:query"
+                        render={props => <SearchResultsScreen query={props.match.params.query} />}
+                    />
+                </main>
             </div>
-            <nav
-                className={css`
-                    grid-area: leftNav;
-                    background: #eee;
-                    padding: 1.5rem;
-                `}>
-                <Navigation />
-            </nav>
-            <main
-                className={css`
-                    grid-area: main;
-                    padding: 2rem;
-                `}>
-                <Route path="/" exact render={() => <TrackList listing="library" />} />
-                <Route
-                    path="/playlists/:id"
-                    render={props => <TrackList listing={{ playlistId: props.match.params.id }} />}
-                />
-            </main>
-        </div>
-    </BrowserRouter>
+        </BrowserRouter>
+    </ThemeProvider>
 )
 
 const Navigation = observer(() => {
@@ -89,13 +99,13 @@ const NavListItem = (props: { id: string; linkTo: string; name: string; icon: Re
             `}
             key={props.id}>
             {props.icon}
-            <A
+            <NavLink
                 className={css`
                     margin-left: 0.3rem;
                 `}
                 to={props.linkTo}>
                 {props.name}
-            </A>
+            </NavLink>
         </li>
     )
 }

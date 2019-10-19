@@ -1,6 +1,9 @@
+use crate::api::search::SearchResults;
 use crate::api::EventSink;
-use crate::errors::{string_err, Erro, Try};
-use crate::ids::{PlaylistId, TrackId};
+use crate::errors::Try;
+use crate::model::{PlaylistId, TrackId};
+use anyhow::anyhow;
+use fstrings::{f, format_args_f};
 use id3::Tag;
 use log;
 use serde_derive::{Deserialize, Serialize};
@@ -50,7 +53,7 @@ impl Library {
         } else if file_path.ends_with(".flac") {
             self.add_track_flac(file_path)
         } else {
-            Err(string_err(format!("unsupported file type {}", file_path)))
+            Err(anyhow!(f!("unsupported file type {file_path}")))
         }
     }
 
@@ -59,7 +62,7 @@ impl Library {
         let tag = |name: &str, value: Option<&str>| {
             value.map(|t| t.to_string()).unwrap_or_else(|| {
                 log::warn!("no {} tag in {}", name, file_path);
-                format!("UNKNOWN {}", name)
+                f!("UNKNOWN {name}")
             })
         };
         let mut mp3 = minimp3::Decoder::new(BufReader::new(File::open(&file_path)?));
@@ -69,7 +72,7 @@ impl Library {
             let frame = match frame_result {
                 Ok(frame) => frame,
                 // An error caused by some IO operation required during decoding.
-                Err(minimp3::Error::Io(e)) => Err(e)?,
+                Err(minimp3::Error::Io(e)) => return Err(e.into()),
                 // The decoder tried to parse a frame from its internal buffer, but there was not enough.
                 Err(minimp3::Error::InsufficientData) => {
                     panic!("not enough data in encoder buffer??? {}", file_path)
@@ -89,6 +92,7 @@ impl Library {
             album: tag("ALBUM", mp3_tags.album()),
             duration_secs,
             file_path,
+            external_id: None,
         };
         let track_id = self.next_track_id();
         self.tracks.insert(track_id, track);
@@ -103,7 +107,7 @@ impl Library {
                 .map(|t| t.to_string())
                 .unwrap_or_else(|| {
                     log::warn!("no {} tag in {}", name, file_path);
-                    format!("UNKNOWN {}", name)
+                    f!("UNKNOWN {name}")
                 })
         };
         let track = Track {
@@ -117,6 +121,7 @@ impl Library {
                 as f32)
                 / flac.streaminfo().sample_rate as f32,
             file_path,
+            external_id: None,
         };
         let track_id = self.next_track_id();
         self.tracks.insert(track_id, track);
@@ -146,10 +151,10 @@ impl Library {
     pub fn add_track_to_playlist(&mut self, track_id: TrackId, playlist_id: PlaylistId) -> Try<()> {
         self.tracks
             .get(&track_id)
-            .ok_or_else(|| string_err(format!("Unknown track {}", track_id.0)))?;
+            .ok_or_else(|| anyhow!("Unknown track {}", track_id.0))?;
         self.playlists
             .get_mut(&playlist_id)
-            .ok_or_else(|| string_err(format!("Unknown playlist {}", playlist_id.0)))?
+            .ok_or_else(|| anyhow!("Unknown playlist {}", playlist_id.0))?
             .track_ids
             .push(track_id);
         Ok(())
@@ -162,6 +167,20 @@ impl Library {
     pub fn playlists(&self) -> impl Iterator<Item = (PlaylistId, &Playlist)> {
         self.playlists.iter().map(|(id, p)| (*id, p))
     }
+
+    pub fn resolve(&self, mut search_results: SearchResults) -> SearchResults {
+        for track_result in &mut search_results.tracks {
+            if let Some((id, _)) = self
+                .tracks
+                .iter()
+                .find(|(_, t)| t.external_id.as_ref() == Some(&track_result.track.external_id))
+            {
+                track_result.track.library_id = Some(*id)
+            }
+        }
+        // TODO: tracks and artists
+        search_results
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -171,6 +190,7 @@ pub struct Track {
     pub artist: String,
     pub album: String,
     pub duration_secs: f32,
+    pub external_id: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -181,6 +201,6 @@ pub struct Playlist {
 
 impl Playlist {
     fn tracks(&self) -> impl Iterator<Item = TrackId> + '_ {
-        self.track_ids.iter().map(|tid| *tid)
+        self.track_ids.iter().copied()
     }
 }

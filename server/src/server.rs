@@ -40,7 +40,7 @@ pub fn run_server() -> Try<()> {
         .and(warp::path("ws"))
         .and(warp::path::end())
         .and(warp::ws2())
-        .and(app_state.clone())
+        .and(app_state)
         .map(|ws: warp::ws::Ws2, app: Arc<App>| ws.on_upgrade(move |ws| ws_connection(app, ws)));
 
     warp::serve(http_rpc.or(websocket)).run(([127, 0, 0, 1], 8080));

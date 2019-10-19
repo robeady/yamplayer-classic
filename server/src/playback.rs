@@ -28,7 +28,7 @@ where
         .play_stream(stream_id)
         .expect("failed to play audio stream");
 
-    let volume = 0.5f32;
+    let volume = 0.5_f32;
     let queue = Arc::new(Mutex::new(Queue::new(volume, format, queue_callback)));
     let queue_for_audio_thread = Arc::clone(&queue);
 
