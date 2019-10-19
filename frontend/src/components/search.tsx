@@ -61,8 +61,8 @@ const Artists = (props: { artists: SearchResults["artists"] }) => {
                                     border-radius: 50%;
                                 `}
                                 src={a.info.image_url || unknownArtistImageUrl}
-                                height={200}
-                                width={200}
+                                height={150}
+                                width={150}
                             />
                         </Link>
                         <Link
@@ -85,10 +85,10 @@ const Albums = (props: { albums: SearchResults["albums"] }) => {
         <Flex flexWrap="wrap">
             {props.albums.map(a => (
                 <Flex p={3} flexDirection="column">
-                    <HoverImage src={a.info.cover_image_url || unknownArtistImageUrl} height={200} width={200} />
+                    <HoverImage src={a.info.cover_image_url || unknownArtistImageUrl} height={150} width={150} />
                     <Box
                         marginTop={2}
-                        maxWidth={200}
+                        maxWidth={150}
                         className={css`
                             text-align: center;
                         `}>
