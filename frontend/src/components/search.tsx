@@ -103,68 +103,6 @@ const Albums = (props: { albums: SearchResults["albums"] }) => {
 const unknownArtistImageUrl =
     "https://e-cdns-images.dzcdn.net/images/artist/d41d8cd98f00b204e9800998ecf8427e/264x264-000000-80-0-0.jpg"
 
-const resultsForNina = {
-    tracks: [],
-    artists: [
-        {
-            id: "5",
-            name: "Nina Nesbitt",
-            image_url:
-                "https://e-cdns-images.dzcdn.net/images/artist/91dbadde22cbe9c32c979f4e3b818d8d/264x264-000000-80-0-0.jpg",
-        },
-        {
-            id: null,
-            external_id: "deezer:42",
-            name: "Nina Simone",
-            image_url:
-                "https://e-cdns-images.dzcdn.net/images/artist/b165a74366ee734abd789180099e129d/264x264-000000-80-0-0.jpg",
-        },
-        { id: null, name: "Nina", image_url: null },
-    ],
-    albums: [
-        {
-            id: "74",
-            name: "The Sun Will Come up, The Seasons Will Change",
-            artist_id: "5",
-            artist: {
-                name: "Nina Nesbitt",
-            },
-            cover_image_url:
-                "https://e-cdns-images.dzcdn.net/images/cover/74af6c0099acd6611d4f5817794f3f83/264x264-000000-80-0-0.jpg",
-        },
-        {
-            id: null,
-            name: "Colder",
-            artist_id: "5",
-            artist: {
-                name: "Nina Nesbitt",
-            },
-            cover_image_url:
-                "https://e-cdns-images.dzcdn.net/images/cover/11f6212dfd980328eadc74e5b5d04b88/264x264-000000-80-0-0.jpg",
-        },
-        {
-            id: null,
-            name: "Nina",
-            artist_id: null,
-            artist: {
-                name: "Nina Pušlar",
-            },
-            cover_image_url:
-                "https://e-cdns-images.dzcdn.net/images/cover/42de5479f690c3b2110a1803f0852e27/264x264-000000-80-0-0.jpg",
-        },
-        {
-            id: null,
-            name: "Nina Cried Power - EP",
-            artist_id: null,
-            artist: {
-                name: "Hozier",
-            },
-            cover_image_url:
-                "https://e-cdns-images.dzcdn.net/images/cover/ae5db50d986ae6b95f7421cda2caf85d/264x264-000000-80-0-0.jpg",
-        },
-    ],
-}
-
 export const SearchBox = withRouter((props: RouteComponentProps) => {
     const [text, setText] = useState("")
     return (
