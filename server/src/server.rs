@@ -5,6 +5,7 @@ use crate::bootstrap::bootstrap_library;
 use crate::errors::Try;
 use crate::http;
 use crate::library::{Library, Track};
+use crate::model::LoadedTrack;
 use crate::player::PlayerApp;
 use crate::websocket::ws_connection;
 use log;
@@ -14,13 +15,13 @@ use std::fs;
 use std::sync::Arc;
 use warp::Filter;
 
-#[derive(Eq, PartialEq, Hash)]
+#[derive(Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub struct ServiceId(pub String);
 
 pub trait Service: Send + Sync {
     fn id(&self) -> ServiceId;
     fn search(&self, query: &str) -> Try<SearchResults>;
-    fn fetch(&self, track_id: &str) -> Try<Vec<u8>>;
+    fn fetch(&self, track_id: &str) -> Try<LoadedTrack>;
 }
 
 pub struct Server {

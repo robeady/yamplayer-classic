@@ -2,7 +2,7 @@ use crate::api::Event::{PlaybackChanged, VolumeChanged};
 use crate::api::{Event, EventSink};
 use crate::errors::Try;
 use crate::library::Track;
-use crate::model::TrackId;
+use crate::model::{LoadedTrack, TrackId};
 use crate::playback;
 use crate::queue::{Queue, QueueCallback};
 use log;
@@ -91,22 +91,17 @@ impl PlayerApp {
         self.queue.lock().skip_current();
     }
 
-    pub fn add_to_queue(
-        &self,
-        track_id: TrackId,
-        track_duration_secs: f32,
-        track_data: Vec<u8>,
-    ) -> Try<()> {
-        let source: Decoder<_> = Decoder::new(Cursor::new(track_data))?;
+    pub fn add_to_queue(&self, track_id: TrackId, track: LoadedTrack) -> Try<()> {
+        let source: Decoder<_> = Decoder::new(Cursor::new(track.data))?;
         log::info!(
             "enqueuing track {} with length: {}:{:02}",
-            track_id.0,
-            track_duration_secs as i64 / 60,
-            track_duration_secs as i64 % 60
+            track_id,
+            track.duration_secs as i64 / 60,
+            track.duration_secs as i64 % 60
         );
         self.queue
             .lock()
-            .enqueue_last(track_id, track_duration_secs, Box::new(source));
+            .enqueue_last(track_id, track.duration_secs, Box::new(source));
         Ok(())
     }
 

@@ -1,8 +1,8 @@
 use self::search::SearchResults;
-use crate::errors::Erro;
+use crate::errors::{Erro, Try};
 use crate::file_completions::complete_file_path;
 use crate::library::{self, Library};
-use crate::model::{PlaylistId, TrackId};
+use crate::model::{ExternalTrackId, LibraryTrackId, LoadedTrack, PlaylistId, TrackId};
 use crate::player::PlayerApp;
 use crate::queue::CurrentTrack;
 use crate::server::{Service, ServiceId};
@@ -83,16 +83,36 @@ impl App {
 
     fn enqueue(&self, track_id: &str) -> Response {
         let track_id = track_id.parse()?;
-        let lib = self.library.lock();
-        let track = lib
-            .get_track(track_id)
-            .ok_or_else(|| anyhow!("Unknown track {}", track_id.0))?;
-        log::info!("loading track {} from {}", track_id.0, track.file_path);
-        let track_data =
-            fs::read(&track.file_path).context("failed to load track file {}", track.file_path)?;
-        self.player
-            .add_to_queue(track_id, track.duration_secs, track_data)?;
+        let track = self.load_track(&track_id)?;
+        self.player.add_to_queue(track_id, track)?;
         done()
+    }
+
+    fn load_track(&self, track_id: &TrackId) -> Try<LoadedTrack> {
+        match track_id {
+            TrackId::Library(lib_track_id) => {
+                let lib = self.library.lock();
+                let track = lib
+                    .get_track(lib_track_id)
+                    .ok_or_else(|| anyhow!("Unknown track {}", lib_track_id.0))?;
+                log::info!("loading track {} from {}", lib_track_id.0, track.file_path);
+                Ok(LoadedTrack {
+                    data: fs::read(&track.file_path)
+                        .with_context(|| f!("failed to load track file {}", track.file_path))?,
+                    duration_secs: track.duration_secs,
+                })
+            }
+            TrackId::External(ExternalTrackId {
+                ref service_id,
+                ref track_id,
+            }) => {
+                let svc = self
+                    .services
+                    .get(service_id)
+                    .ok_or_else(|| anyhow!("unknown service for track ID {}", track_id))?;
+                svc.fetch(track_id)
+            }
+        }
     }
 
     fn get_tracks(&self, track_ids: &[String]) -> Response {
@@ -100,8 +120,12 @@ impl App {
         let tracks: Result<BTreeMap<TrackId, Option<Track>>, Erro> = track_ids
             .iter()
             .map(|id| {
-                let id = id.parse()?;
-                Ok((id, lib.get_track(id).map(|t| (id, t).into())))
+                let id: TrackId = id.parse()?;
+                let track = match id {
+                    TrackId::Library(lib_id) => lib.get_track(&lib_id).map(|t| (lib_id, t).into()),
+                    TrackId::External(_) => None,
+                };
+                Ok((id, track))
             })
             .collect();
         ok(&tracks?)
@@ -169,8 +193,8 @@ impl App {
     }
 }
 
-impl<'a> From<(TrackId, &'a library::Track)> for Track<'a> {
-    fn from(t: (TrackId, &'a library::Track)) -> Self {
+impl<'a> From<(LibraryTrackId, &'a library::Track)> for Track<'a> {
+    fn from(t: (LibraryTrackId, &'a library::Track)) -> Self {
         let (id, track) = t;
         Track {
             id: id.0.to_string(),
@@ -237,6 +261,7 @@ trait AndDoneExt {
         done()
     }
 }
+
 impl<T> AndDoneExt for T {}
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -246,14 +271,14 @@ struct CompleteFilePathResp {
 
 #[derive(Serialize)]
 #[serde(tag = "type", content = "args")]
-pub enum Event {
+pub enum Event<'a> {
     VolumeChanged {
         muted: bool,
         volume: f32,
     },
     PlaybackChanged {
         paused: bool,
-        current_track: Option<CurrentTrack>,
+        current_track: Option<CurrentTrack<'a>>,
     },
 }
 

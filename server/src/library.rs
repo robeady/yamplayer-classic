@@ -1,7 +1,7 @@
 use crate::api::search::SearchResults;
 use crate::api::EventSink;
 use crate::errors::Try;
-use crate::model::{PlaylistId, TrackId};
+use crate::model::{LibraryTrackId, PlaylistId, TrackId};
 use anyhow::anyhow;
 use fstrings::{f, format_args_f};
 use id3::Tag;
@@ -13,7 +13,7 @@ use std::io::BufReader;
 use std::sync::Arc;
 
 pub struct Library {
-    tracks: BTreeMap<TrackId, Track>,
+    tracks: BTreeMap<LibraryTrackId, Track>,
     playlists: BTreeMap<PlaylistId, Playlist>,
     event_sink: Arc<EventSink>,
 }
@@ -27,8 +27,8 @@ impl Library {
         }
     }
 
-    fn next_track_id(&self) -> TrackId {
-        TrackId(
+    fn next_track_id(&self) -> LibraryTrackId {
+        LibraryTrackId(
             self.tracks
                 .iter()
                 .next_back()
@@ -47,7 +47,7 @@ impl Library {
         )
     }
 
-    pub fn add_track(&mut self, file_path: String) -> Try<TrackId> {
+    pub fn add_track(&mut self, file_path: String) -> Try<LibraryTrackId> {
         if file_path.ends_with(".mp3") {
             self.add_track_mp3(file_path)
         } else if file_path.ends_with(".flac") {
@@ -57,7 +57,7 @@ impl Library {
         }
     }
 
-    fn add_track_mp3(&mut self, file_path: String) -> Try<TrackId> {
+    fn add_track_mp3(&mut self, file_path: String) -> Try<LibraryTrackId> {
         let mp3_tags = Tag::read_from_path(&file_path)?;
         let tag = |name: &str, value: Option<&str>| {
             value.map(|t| t.to_string()).unwrap_or_else(|| {
@@ -99,7 +99,7 @@ impl Library {
         Ok(track_id)
     }
 
-    fn add_track_flac(&mut self, file_path: String) -> Try<TrackId> {
+    fn add_track_flac(&mut self, file_path: String) -> Try<LibraryTrackId> {
         let flac = claxon::FlacReader::open(&file_path)?;
         let tag = |name: &str| {
             flac.get_tag(name)
@@ -128,12 +128,12 @@ impl Library {
         Ok(track_id)
     }
 
-    pub fn tracks(&self) -> impl Iterator<Item = (TrackId, &Track)> {
+    pub fn tracks(&self) -> impl Iterator<Item = (LibraryTrackId, &Track)> {
         self.tracks.iter().map(|(id, t)| (*id, t))
     }
 
-    pub fn get_track(&self, id: TrackId) -> Option<&Track> {
-        self.tracks.get(&id)
+    pub fn get_track(&self, id: &LibraryTrackId) -> Option<&Track> {
+        self.tracks.get(id)
     }
 
     pub fn create_playlist(&mut self, name: String) -> PlaylistId {
@@ -148,7 +148,11 @@ impl Library {
         playlist_id
     }
 
-    pub fn add_track_to_playlist(&mut self, track_id: TrackId, playlist_id: PlaylistId) -> Try<()> {
+    pub fn add_track_to_playlist(
+        &mut self,
+        track_id: LibraryTrackId,
+        playlist_id: PlaylistId,
+    ) -> Try<()> {
         self.tracks
             .get(&track_id)
             .ok_or_else(|| anyhow!("Unknown track {}", track_id.0))?;
@@ -175,7 +179,7 @@ impl Library {
                 .iter()
                 .find(|(_, t)| t.external_id.as_ref() == Some(&track_result.track.external_id))
             {
-                track_result.track.library_id = Some(*id)
+                track_result.track.library_id = Some(TrackId::Library(*id))
             }
         }
         // TODO: tracks and artists
@@ -196,11 +200,11 @@ pub struct Track {
 #[derive(Serialize)]
 pub struct Playlist {
     pub name: String,
-    track_ids: Vec<TrackId>,
+    track_ids: Vec<LibraryTrackId>,
 }
 
 impl Playlist {
-    fn tracks(&self) -> impl Iterator<Item = TrackId> + '_ {
+    fn tracks(&self) -> impl Iterator<Item = LibraryTrackId> + '_ {
         self.track_ids.iter().copied()
     }
 }

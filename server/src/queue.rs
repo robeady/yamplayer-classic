@@ -1,5 +1,5 @@
 use crate::model::TrackId;
-use crate::serde::number_string;
+use crate::serde::string;
 use cpal::Format;
 use rodio::source::UniformSourceIterator;
 use rodio::{Sample, Source};
@@ -133,7 +133,7 @@ where
 
     pub fn current_track(&self) -> Option<CurrentTrack> {
         self.tracks.get(0).map(|t| CurrentTrack {
-            track: t.track,
+            track: &t.track,
             position_secs: t.audio_source.samples_played as f32
                 / self.audio_format.channels as f32
                 / self.audio_format.sample_rate.0 as f32,
@@ -159,8 +159,8 @@ where
 }
 
 #[derive(Serialize)]
-pub struct CurrentTrack {
-    track: EnqueuedTrack,
+pub struct CurrentTrack<'a> {
+    track: &'a EnqueuedTrack,
     position_secs: f32,
 }
 
@@ -189,7 +189,7 @@ struct QueueItem<S> {
     audio_source: CountedSource<S>,
 }
 
-#[derive(Copy, Clone, Serialize)]
+#[derive(Serialize)]
 pub struct EnqueuedTrack {
     pub id: TrackId,
     pub duration_secs: f32,
@@ -197,7 +197,7 @@ pub struct EnqueuedTrack {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize)]
-pub struct EntryMarker(#[serde(with = "number_string")] u64);
+pub struct EntryMarker(#[serde(with = "string")] u64);
 
 struct CountedSource<S> {
     samples_played: u64,
