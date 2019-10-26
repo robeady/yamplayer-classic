@@ -91,30 +91,26 @@ impl PlayerApp {
         self.queue.lock().skip_current();
     }
 
-    pub fn add_to_queue(&self, track_id: TrackId, track: &Track) -> Try<()> {
-        log::debug!("loading file");
-        let buffer = load_file(&track.file_path)?;
-        log::debug!("file loaded into memory");
-        let source: Decoder<_> = Decoder::new(Cursor::new(buffer))?;
+    pub fn add_to_queue(
+        &self,
+        track_id: TrackId,
+        track_duration_secs: f32,
+        track_data: Vec<u8>,
+    ) -> Try<()> {
+        let source: Decoder<_> = Decoder::new(Cursor::new(track_data))?;
         log::info!(
-            "enqueuing track with length: {}:{:02}",
-            track.duration_secs as i64 / 60,
-            track.duration_secs as i64 % 60
+            "enqueuing track {} with length: {}:{:02}",
+            track_id.0,
+            track_duration_secs as i64 / 60,
+            track_duration_secs as i64 % 60
         );
         self.queue
             .lock()
-            .enqueue_last(track_id, track.duration_secs, Box::new(source));
+            .enqueue_last(track_id, track_duration_secs, Box::new(source));
         Ok(())
     }
 
     pub fn empty_queue(&self) {
         self.queue.lock().clear();
     }
-}
-
-fn load_file(path: &str) -> Try<Vec<u8>> {
-    let mut file = File::open(path)?;
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer)?;
-    Ok(buffer)
 }

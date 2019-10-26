@@ -6,13 +6,14 @@ use crate::model::{PlaylistId, TrackId};
 use crate::player::PlayerApp;
 use crate::queue::CurrentTrack;
 use crate::server::{Service, ServiceId};
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use fstrings::{f, format_args_f};
 use parking_lot::{Mutex, RwLock};
 use serde_derive::{Deserialize, Serialize};
 use slotmap::{DenseSlotMap, Key};
 use std::collections::{BTreeMap, HashMap};
 use std::convert::Into;
+use std::fs;
 use std::sync::Arc;
 
 pub mod search;
@@ -86,8 +87,11 @@ impl App {
         let track = lib
             .get_track(track_id)
             .ok_or_else(|| anyhow!("Unknown track {}", track_id.0))?;
-        log::info!("enqueueing track {} from {}", track_id.0, track.file_path);
-        self.player.add_to_queue(track_id, &track)?;
+        log::info!("loading track {} from {}", track_id.0, track.file_path);
+        let track_data =
+            fs::read(&track.file_path).context("failed to load track file {}", track.file_path)?;
+        self.player
+            .add_to_queue(track_id, track.duration_secs, track_data)?;
         done()
     }
 
