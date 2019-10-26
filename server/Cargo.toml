@@ -1,7 +1,7 @@
 cargo-features = ["profile-overrides"]
 
 [package]
-name = "server"
+name = "yamplayer"
 version = "0.1.0"
 authors = ["robeady <robertj.eady@gmail.com>"]
 edition = "2018"
@@ -31,7 +31,3 @@ url = { version = "2.1.0", features = ["serde"] }
 chrono = { version= "0.4.9", features = ["serde"] }
 fstrings = "0.1.4"
 anyhow = "1.0.15"
-
-# optimise dependencies in dev build
-[profile.dev.package."*"]
-opt-level = 3

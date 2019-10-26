@@ -1,23 +1,24 @@
 use self::search::SearchResults;
-use crate::deezer::client::DeezerClient;
 use crate::errors::Erro;
 use crate::file_completions::complete_file_path;
 use crate::library::{self, Library};
 use crate::model::{PlaylistId, TrackId};
 use crate::player::PlayerApp;
 use crate::queue::CurrentTrack;
+use crate::server::{Service, ServiceId};
 use anyhow::anyhow;
 use fstrings::{f, format_args_f};
 use parking_lot::{Mutex, RwLock};
 use serde_derive::{Deserialize, Serialize};
 use slotmap::{DenseSlotMap, Key};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::convert::Into;
 use std::sync::Arc;
 
 pub mod search;
 
 pub struct App {
+    pub services: HashMap<ServiceId, Box<dyn Service>>,
     pub player: PlayerApp,
     pub library: Mutex<Library>,
     pub event_sink: Arc<EventSink>,
@@ -154,7 +155,12 @@ impl App {
     }
 
     fn search(&self, query: &str) -> Response {
-        let results = DeezerClient::new().search(query)?;
+        let service = self
+            .services
+            .values()
+            .next()
+            .ok_or(anyhow!("No search services registered"))?;
+        let results = service.search(query)?;
         ok(&self.library.lock().resolve(results))
     }
 }
