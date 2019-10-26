@@ -42,18 +42,18 @@ impl Server {
         let player_app = PlayerApp::new(Arc::clone(&event_sink))?;
         let mut library = Library::new(Arc::clone(&event_sink));
         if let Err(e) = bootstrap_library(&mut library) {
-        log::warn!("Did not bootstrap library: {}", e)
-    }
-    let app = Arc::new(App {
+            log::warn!("Did not bootstrap library: {}", e)
+        }
+        let app = Arc::new(App {
             services: self.services,
-        player: player_app,
-        library: Mutex::new(library),
-        event_sink: Arc::clone(&event_sink),
-    });
+            player: player_app,
+            library: Mutex::new(library),
+            event_sink: Arc::clone(&event_sink),
+        });
 
-    let app_state = warp::any().map(move || app.clone());
+        let app_state = warp::any().map(move || app.clone());
 
-    let http_rpc = warp::post2()
+        let http_rpc = warp::post2()
             .and(warp::path("api"))
             .and(warp::path::end())
             .and(warp::body::json())

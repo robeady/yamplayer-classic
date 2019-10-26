@@ -159,7 +159,7 @@ impl App {
             .services
             .values()
             .next()
-            .ok_or(anyhow!("No search services registered"))?;
+            .ok_or_else(|| anyhow!("No search services registered"))?;
         let results = service.search(query)?;
         ok(&self.library.lock().resolve(results))
     }
