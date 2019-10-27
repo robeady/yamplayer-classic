@@ -25,12 +25,12 @@ impl FromStr for TrackId {
     type Err = Erro;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let parts: Vec<&str> = s.splitn(2, ":").collect();
+        let parts: Vec<&str> = s.splitn(2, ':').collect();
         match parts.as_slice() {
             [p] => Ok(Self::Library(LibraryTrackId(p.parse()?))),
             [service, id] => Ok(Self::External(ExternalTrackId {
-                service_id: ServiceId(service.to_string()),
-                track_id: id.to_string(),
+                service_id: ServiceId((*service).to_owned()),
+                track_id: (*id).to_owned(),
             })),
             _ => Err(anyhow!("invalid track ID {}", s)),
         }

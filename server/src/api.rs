@@ -1,4 +1,3 @@
-use self::search::SearchResults;
 use crate::errors::{Erro, Try};
 use crate::file_completions::complete_file_path;
 use crate::library::{self, Library};

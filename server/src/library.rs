@@ -132,6 +132,7 @@ impl Library {
         self.tracks.iter().map(|(id, t)| (*id, t))
     }
 
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn get_track(&self, id: &LibraryTrackId) -> Option<&Track> {
         self.tracks.get(id)
     }

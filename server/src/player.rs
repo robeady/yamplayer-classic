@@ -1,15 +1,13 @@
 use crate::api::Event::{PlaybackChanged, VolumeChanged};
 use crate::api::{Event, EventSink};
 use crate::errors::Try;
-use crate::library::Track;
 use crate::model::{LoadedTrack, TrackId};
 use crate::playback;
 use crate::queue::{Queue, QueueCallback};
 use log;
 use parking_lot::Mutex;
 use rodio::decoder::Decoder;
-use std::fs::File;
-use std::io::{Cursor, Read};
+use std::io::Cursor;
 use std::sync::Arc;
 
 pub struct PlayerApp {

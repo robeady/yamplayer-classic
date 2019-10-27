@@ -4,14 +4,13 @@ use crate::api::{EventSink, Payload};
 use crate::bootstrap::bootstrap_library;
 use crate::errors::Try;
 use crate::http;
-use crate::library::{Library, Track};
+use crate::library::Library;
 use crate::model::LoadedTrack;
 use crate::player::PlayerApp;
 use crate::websocket::ws_connection;
 use log;
 use parking_lot::Mutex;
 use std::collections::HashMap;
-use std::fs;
 use std::sync::Arc;
 use warp::Filter;
 
