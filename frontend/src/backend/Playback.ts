@@ -1,6 +1,6 @@
 import { observable, action, computed } from "mobx"
 import { PlaybackTiming } from "../Model"
-import { ServerApi, ServerEvent } from "./ServerApi"
+import { ServerApi, ServerEvent, CurrentTrack } from "./ServerApi"
 
 export class Playback {
     constructor(private serverApi: ServerApi) {
@@ -8,10 +8,24 @@ export class Playback {
         this.initialiseState()
     }
 
+    private updateCurrentTrack(currentTrack: null | CurrentTrack, paused: boolean) {
+        this.currentTrack =
+            currentTrack === null
+                ? null
+                : {
+                      trackId: currentTrack.track.id,
+                      durationSecs: currentTrack.track.duration_secs,
+                      playingSinceTimestamp: paused ? "paused" : performance.now(),
+                      positionSecsAtTimestamp: currentTrack.position_secs,
+                  }
+    }
+
     private initialiseState = async () => {
         // TODO initialise all the state
-        const initialState = await this.serverApi.request("GetPlaybackState")
-        this.setVolume(initialState.volume)
+        const { volume, muted, current_track, paused } = await this.serverApi.request("GetPlaybackState")
+        this.volume = volume
+        this.muted = muted
+        this.updateCurrentTrack(current_track, paused)
     }
 
     @action setVolume = (v: number) => (this.volume = v)
@@ -24,15 +38,7 @@ export class Playback {
                 this.muted = e.args.muted
                 return
             case "PlaybackChanged":
-                this.currentTrack =
-                    e.args.current_track === null
-                        ? null
-                        : {
-                              trackId: e.args.current_track.track.id,
-                              durationSecs: e.args.current_track.track.duration_secs,
-                              playingSinceTimestamp: e.args.paused ? "paused" : performance.now(),
-                              positionSecsAtTimestamp: e.args.current_track.position_secs,
-                          }
+                this.updateCurrentTrack(e.args.current_track, e.args.paused)
                 return
         }
     }

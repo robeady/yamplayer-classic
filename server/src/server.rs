@@ -14,7 +14,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use warp::Filter;
 
-#[derive(Eq, PartialEq, Hash, Ord, PartialOrd)]
+#[derive(Eq, PartialEq, Hash, Ord, PartialOrd, Clone)]
 pub struct ServiceId(pub String);
 
 pub trait Service: Send + Sync {

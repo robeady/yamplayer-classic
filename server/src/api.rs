@@ -142,17 +142,7 @@ impl App {
     }
 
     fn get_playback_state(&self) -> Response {
-        #[derive(Debug, Serialize)]
-        struct PlaybackState {
-            playing: bool,
-            volume: f32,
-            muted: bool,
-        }
-        ok(&PlaybackState {
-            playing: !self.player.paused(),
-            volume: self.player.unmuted_volume(),
-            muted: self.player.muted(),
-        })
+        ok(&self.player.playback_state())
     }
 
     fn list_playlists(&self) -> Response {
@@ -270,14 +260,14 @@ struct CompleteFilePathResp {
 
 #[derive(Serialize)]
 #[serde(tag = "type", content = "args")]
-pub enum Event<'a> {
+pub enum Event {
     VolumeChanged {
         muted: bool,
         volume: f32,
     },
     PlaybackChanged {
         paused: bool,
-        current_track: Option<CurrentTrack<'a>>,
+        current_track: Option<CurrentTrack>,
     },
 }
 

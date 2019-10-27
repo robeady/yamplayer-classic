@@ -133,7 +133,7 @@ where
 
     pub fn current_track(&self) -> Option<CurrentTrack> {
         self.tracks.get(0).map(|t| CurrentTrack {
-            track: &t.track,
+            track: t.track.clone(),
             position_secs: t.audio_source.samples_played as f32
                 / self.audio_format.channels as f32
                 / self.audio_format.sample_rate.0 as f32,
@@ -158,9 +158,9 @@ where
     }
 }
 
-#[derive(Serialize)]
-pub struct CurrentTrack<'a> {
-    track: &'a EnqueuedTrack,
+#[derive(Serialize, Clone)]
+pub struct CurrentTrack {
+    track: EnqueuedTrack,
     position_secs: f32,
 }
 
@@ -189,7 +189,7 @@ struct QueueItem<S> {
     audio_source: CountedSource<S>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct EnqueuedTrack {
     pub id: TrackId,
     pub duration_secs: f32,

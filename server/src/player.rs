@@ -1,7 +1,7 @@
 use crate::api::Event::{PlaybackChanged, VolumeChanged};
 use crate::api::{Event, EventSink};
 use crate::errors::Try;
-use crate::model::{LoadedTrack, TrackId};
+use crate::model::{LoadedTrack, PlaybackState, TrackId};
 use crate::playback;
 use crate::queue::{Queue, QueueCallback};
 use log;
@@ -37,12 +37,14 @@ impl PlayerApp {
         Ok(PlayerApp { queue, event_sink })
     }
 
-    pub fn unmuted_volume(&self) -> f32 {
-        self.queue.lock().controls.volume
-    }
-
-    pub fn muted(&self) -> bool {
-        self.queue.lock().controls.muted
+    pub fn playback_state(&self) -> PlaybackState {
+        let q = self.queue.lock();
+        PlaybackState {
+            muted: q.controls.muted,
+            volume: q.controls.volume,
+            paused: q.controls.paused,
+            current_track: q.current_track(),
+        }
     }
 
     pub fn update_volume(&self, volume: Option<f32>, muted: Option<bool>) {
@@ -79,10 +81,6 @@ impl PlayerApp {
                 current_track: source.current_track(),
             })
         }
-    }
-
-    pub fn paused(&self) -> bool {
-        self.queue.lock().controls.paused
     }
 
     pub fn skip_to_next(&self) {

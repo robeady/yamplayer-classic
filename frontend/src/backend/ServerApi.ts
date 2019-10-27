@@ -12,10 +12,17 @@ interface ServerRPCApi {
     (type: "GetTracks", args: { track_ids: string[] }): Promise<Record<string, Track | null>>
     (type: "GetLibrary"): Promise<{ tracks: Track[] }>
     (type: "AddToLibrary", args: { path: string }): Promise<void>
-    (type: "GetPlaybackState"): Promise<{ playing: boolean; volume: number }>
+    (type: "GetPlaybackState"): Promise<PlaybackState>
     (type: "ListPlaylists"): Promise<{ playlists: { id: string; name: string }[] }>
     (type: "GetPlaylist", args: { id: string }): Promise<{ name: string; track_ids: string[] } | null>
     (type: "Search", args: { query: string }): Promise<SearchResults>
+}
+
+export interface PlaybackState {
+    muted: boolean
+    volume: number
+    paused: boolean
+    current_track: CurrentTrack | null
 }
 
 export interface SearchResults {
