@@ -1,6 +1,8 @@
+pub mod search;
+
 use crate::errors::{Erro, Try};
 use crate::file_completions::complete_file_path;
-use crate::library::{self, Library};
+use crate::library::{self, DbLibrary, Library, Track};
 use crate::model::{ExternalTrackId, LibraryTrackId, LoadedTrack, PlaylistId, TrackId};
 use crate::player::PlayerApp;
 use crate::queue::CurrentTrack;
@@ -13,14 +15,13 @@ use slotmap::{DenseSlotMap, Key};
 use std::collections::{BTreeMap, HashMap};
 use std::convert::Into;
 use std::fs;
+use std::marker::PhantomData;
 use std::sync::Arc;
 
-pub mod search;
-
-pub struct App {
+pub struct App<L: Library> {
     pub services: HashMap<ServiceId, Box<dyn Service>>,
     pub player: PlayerApp,
-    pub library: Mutex<Library>,
+    pub library: Mutex<L>,
     pub event_sink: Arc<EventSink>,
 }
 
@@ -58,7 +59,7 @@ pub enum Request {
     },
 }
 
-impl App {
+impl<L: Library> App<L> {
     pub fn handle_request(&self, request: &Request) -> Response {
         use Request::*;
         #[allow(clippy::unit_arg)]
@@ -75,7 +76,11 @@ impl App {
             AddToLibrary { path } => self.add_to_library(path.clone()),
             GetPlaybackState => self.get_playback_state(),
             ListPlaylists => self.list_playlists(),
-            GetPlaylist { ref id } => ok(&self.library.lock().get_playlist(id.parse()?)),
+            GetPlaylist { ref id } => ok(&self
+                .library
+                .lock()
+                .get_playlist(id.parse()?)
+                .context("failed to get playlist")?),
             Search { ref query } => self.search(query),
         }
     }
@@ -92,14 +97,18 @@ impl App {
             TrackId::Library(lib_track_id) => {
                 let lib = self.library.lock();
                 let track = lib
-                    .get_track(lib_track_id)
-                    .ok_or_else(|| anyhow!("Unknown track {}", lib_track_id.0))?;
-                log::info!("loading track {} from {}", lib_track_id.0, track.file_path);
-                Ok(LoadedTrack {
-                    data: fs::read(&track.file_path)
-                        .with_context(|| f!("failed to load track file {}", track.file_path))?,
-                    duration_secs: track.duration_secs,
-                })
+                    .get_track(lib_track_id)?
+                    .ok_or_else(|| anyhow!("Unknown track {}", track_id))?;
+                if let Some(file_path) = track.file_path {
+                    log::info!("loading track {} from {}", track_id, file_path);
+                    Ok(LoadedTrack {
+                        data: fs::read(&file_path)
+                            .with_context(|| f!("failed to load track file {}", file_path))?,
+                        duration_secs: track.track_info.duration_secs,
+                    })
+                } else {
+                    Err(anyhow!("no file available for track {}", track_id))
+                }
             }
             TrackId::External(ExternalTrackId {
                 ref service_id,
@@ -121,7 +130,7 @@ impl App {
             .map(|id| {
                 let id: TrackId = id.parse()?;
                 let track = match id {
-                    TrackId::Library(lib_id) => lib.get_track(&lib_id).map(|t| (lib_id, t).into()),
+                    TrackId::Library(lib_id) => lib.get_track(&lib_id)?,
                     TrackId::External(_) => None,
                 };
                 Ok((id, track))
@@ -132,7 +141,11 @@ impl App {
 
     fn list_library(&self) -> Response {
         let lib = self.library.lock();
-        let tracks = lib.tracks().map(Into::into).collect();
+        let tracks = lib
+            .tracks()
+            .context("error loading tracks")?
+            .map(Into::into)
+            .collect();
         ok(&LibraryListing { tracks })
     }
 
@@ -160,7 +173,11 @@ impl App {
                 .library
                 .lock()
                 .playlists()
-                .map(|(id, p)| PlaylistInfo { id, name: &p.name })
+                .context("Error loading playlists")?
+                .map(|p| PlaylistInfo {
+                    id: p.id,
+                    name: &p.name,
+                })
                 .collect(),
         })
     }
@@ -178,38 +195,42 @@ impl App {
             .next()
             .ok_or_else(|| anyhow!("No search services registered"))?;
         let results = service.search(query)?;
-        ok(&self.library.lock().resolve(results))
+        ok(&self
+            .library
+            .lock()
+            .resolve(results)
+            .context("failed to resolve search results")?)
     }
 }
 
-impl<'a> From<(LibraryTrackId, &'a library::Track)> for Track<'a> {
-    fn from(t: (LibraryTrackId, &'a library::Track)) -> Self {
-        let (id, track) = t;
-        Track {
-            id: id.0.to_string(),
-            file_path: &track.file_path,
-            title: &track.title,
-            artist: &track.artist,
-            album: &track.album,
-            duration_secs: track.duration_secs,
-        }
-    }
+//impl<'a> From<(LibraryTrackId, &'a library::Track)> for Track<'a> {
+//    fn from(t: (LibraryTrackId, &'a library::Track)) -> Self {
+//        let (id, track) = t;
+//        Track {
+//            id: id.0.to_string(),
+//            file_path: &track.file_path,
+//            title: &track.title,
+//            artist: &track.artist,
+//            album: &track.album,
+//            duration_secs: track.duration_secs,
+//        }
+//    }
+//}
+
+#[derive(Serialize)]
+struct LibraryListing {
+    tracks: Vec<Track>,
 }
 
-#[derive(Debug, Serialize)]
-struct LibraryListing<'a> {
-    tracks: Vec<Track<'a>>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Track<'a> {
-    pub id: String,
-    pub file_path: &'a str,
-    pub title: &'a str,
-    pub artist: &'a str,
-    pub album: &'a str,
-    pub duration_secs: f32,
-}
+//#[derive(Debug, Serialize, Deserialize)]
+//pub struct Track<'a> {
+//    pub id: String,
+//    pub file_path: &'a str,
+//    pub title: &'a str,
+//    pub artist: &'a str,
+//    pub album: &'a str,
+//    pub duration_secs: f32,
+//}
 
 #[derive(Debug, Clone)]
 pub struct Payload {

@@ -4,7 +4,7 @@ use crate::api::{EventSink, Payload};
 use crate::bootstrap::bootstrap_library;
 use crate::errors::Try;
 use crate::http;
-use crate::library::Library;
+use crate::library::{DbLibrary, InMemoryLibrary};
 use crate::model::LoadedTrack;
 use crate::player::PlayerApp;
 use crate::websocket::ws_connection;
@@ -40,7 +40,7 @@ impl Server {
             log::info!("event: {}", payload.json)
         }));
         let player_app = PlayerApp::new(Arc::clone(&event_sink))?;
-        let mut library = Library::new(Arc::clone(&event_sink));
+        let mut library = InMemoryLibrary::new(Arc::clone(&event_sink));
         if let Err(e) = bootstrap_library(&mut library) {
             log::warn!("Did not bootstrap library: {}", e)
         }
@@ -58,14 +58,16 @@ impl Server {
             .and(warp::path::end())
             .and(warp::body::json())
             .and(app_state.clone())
-            .map(|request: Request, app: Arc<App>| http::api_handler(app, request));
+            .map(|request: Request, app: Arc<App<InMemoryLibrary>>| {
+                http::api_handler(app, request)
+            });
 
         let websocket = warp::get2()
             .and(warp::path("ws"))
             .and(warp::path::end())
             .and(warp::ws2())
             .and(app_state)
-            .map(|ws: warp::ws::Ws2, app: Arc<App>| {
+            .map(|ws: warp::ws::Ws2, app: Arc<App<InMemoryLibrary>>| {
                 ws.on_upgrade(move |ws| ws_connection(app, ws))
             });
 

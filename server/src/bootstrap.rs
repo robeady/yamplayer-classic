@@ -11,11 +11,11 @@ struct Bootstrap {
     tracks: Vec<String>,
 }
 
-pub fn bootstrap_library(library: &mut Library) -> Try<()> {
+pub fn bootstrap_library(library: &mut impl Library) -> Try<()> {
     let b: Bootstrap = serde_yaml::from_reader(BufReader::new(File::open("bootstrap.yml")?))?;
     for (playlist, tracks) in b.playlists {
         log::info!("creating playlist {}", playlist);
-        let playlist_id = library.create_playlist(playlist);
+        let playlist_id = library.create_playlist(playlist)?;
         for playlist_track in tracks {
             log::info!("adding track {} to playlist", playlist_track);
             let track_id = library.add_track(playlist_track)?;

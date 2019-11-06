@@ -51,7 +51,7 @@ impl Display for TrackId {
 }
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize)]
-pub struct LibraryTrackId(#[serde(with = "string")] pub u64);
+pub struct LibraryTrackId(#[serde(with = "string")] pub i64);
 
 #[derive(Ord, PartialOrd, Eq, PartialEq, Clone)]
 pub struct ExternalTrackId {
@@ -76,7 +76,7 @@ fn parse_id<T: FromStr>(s: &str, type_name: &str) -> Try<T> {
 }
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize)]
-pub struct AlbumId(#[serde(with = "string")] pub u64);
+pub struct AlbumId(#[serde(with = "string")] pub i64);
 
 impl FromStr for AlbumId {
     type Err = Erro;
@@ -87,7 +87,7 @@ impl FromStr for AlbumId {
 }
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize)]
-pub struct ArtistId(#[serde(with = "string")] pub u32);
+pub struct ArtistId(#[serde(with = "string")] pub i32);
 
 impl FromStr for ArtistId {
     type Err = Erro;
@@ -98,7 +98,7 @@ impl FromStr for ArtistId {
 }
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize)]
-pub struct PlaylistId(#[serde(with = "string")] pub u64);
+pub struct PlaylistId(#[serde(with = "string")] pub i64);
 
 impl FromStr for PlaylistId {
     type Err = Erro;
@@ -108,23 +108,24 @@ impl FromStr for PlaylistId {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct TrackInfo {
     pub title: String,
     pub isrc: Option<String>,
     pub duration_secs: f32,
+    pub file_path: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct ArtistInfo {
     pub name: String,
-    pub image_url: Url,
+    pub image_url: Option<Url>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct AlbumInfo {
     pub title: String,
-    pub cover_image_url: Url,
+    pub cover_image_url: Option<Url>,
     pub release_date: Option<NaiveDate>,
 }
 
