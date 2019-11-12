@@ -1,6 +1,7 @@
 use super::schema::{albums, artists, playlist_tracks, playlists, tracks};
 use super::tables;
 use crate::api::search::SearchResults;
+use crate::api::EventSink;
 use crate::errors::Try;
 use crate::library::{Library, Playlist, Track};
 use crate::model::{
@@ -10,6 +11,7 @@ use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 use diesel::{insert_into, select};
 use std::collections::HashMap;
+use std::sync::Arc;
 use thread_local::CachedThreadLocal;
 
 pub struct DbLibrary {
@@ -27,13 +29,11 @@ impl Library for DbLibrary {
     }
 
     fn get_track(&self, id: LibraryTrackId) -> Try<Option<Track>> {
-        let con = establish_connection();
-        // let track: Option<tables::Track> = tracks::table.find(id.0).first(&con).optional()?;
         let row: Option<(tables::Track, tables::Album, tables::Artist)> = tracks::table
+            .find(id.0)
             .inner_join(albums::table)
             .inner_join(artists::table)
-            .filter(tracks::track_id.eq(Some(id.0)))
-            .first(&con)
+            .first(self.connection()?)
             .optional()?;
         Ok(row.map(into_track))
     }
@@ -245,6 +245,13 @@ impl DbLibrary {
     //        self.connection
     //            .get_or_try(|| Ok(Connection::open(&self.file_name)?))
     //    }
+
+    pub fn new(file_path: String, event_sink: Arc<EventSink>) -> DbLibrary {
+        DbLibrary {
+            connection: CachedThreadLocal::new(),
+            file_path,
+        }
+    }
 
     fn connection(&self) -> diesel::ConnectionResult<&SqliteConnection> {
         // TODO: create if not open yet?
