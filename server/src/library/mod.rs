@@ -1,5 +1,7 @@
 mod database;
 mod inmemory;
+mod schema;
+mod tables;
 
 pub use database::DbLibrary;
 pub use inmemory::InMemoryLibrary;
@@ -7,70 +9,71 @@ pub use inmemory::InMemoryLibrary;
 use crate::api::search::SearchResults;
 use crate::errors::Try;
 use crate::model::{
-    AlbumId, AlbumInfo, ArtistId, ArtistInfo, ExternalTrackId, LibraryTrackId, PlaylistId, TrackId,
-    TrackInfo,
+    AlbumId, AlbumInfo, ArtistId, ArtistInfo, LibraryTrackId, PlaylistId, TrackInfo,
 };
+use anyhow::anyhow;
+use fstrings::{f, format_args_f};
 use id3::Tag;
-use serde_derive::{Deserialize, Serialize};
-use std::error::Error;
+use serde_derive::Serialize;
 use std::fs::File;
 use std::io::BufReader;
 
 pub trait Library: Send + Sync + 'static {
-    type Error: Send + Sync + Error;
+    fn tracks(&self) -> Try<Box<dyn Iterator<Item = Track> + '_>>;
+
+    fn get_track(&self, id: LibraryTrackId) -> Try<Option<Track>>;
 
     fn create_track(
         &self,
         track: TrackInfo,
-        artist: ArtistId,
         album: AlbumId,
-    ) -> Result<LibraryTrackId, Self::Error>;
+        artist: ArtistId,
+    ) -> Try<LibraryTrackId>;
 
-    fn create_album(&self, album: AlbumInfo, artist: ArtistId) -> Result<AlbumId, Self::Error>;
+    fn create_album(&self, album: AlbumInfo) -> Try<AlbumId>;
 
-    fn create_artist(&self, artist: ArtistInfo) -> Result<ArtistId, Self::Error>;
+    fn find_albums(&self, title: &str) -> Try<Vec<(AlbumId, AlbumInfo)>>;
 
-    fn tracks(&self) -> Result<Box<dyn Iterator<Item = Track> + '_>, Self::Error>;
+    fn create_artist(&self, artist: ArtistInfo) -> Try<ArtistId>;
 
-    fn get_track(&self, id: &LibraryTrackId) -> Result<Option<Track>, Self::Error>;
+    fn find_artists(&self, name: &str) -> Try<Vec<(ArtistId, ArtistInfo)>>;
 
-    fn create_playlist(&mut self, name: String) -> Result<PlaylistId, Self::Error>;
+    fn playlists(&self) -> Try<Box<dyn Iterator<Item = Playlist> + '_>>;
 
-    fn get_playlist(&self, id: PlaylistId) -> Result<Option<Playlist>, Self::Error>;
+    fn create_playlist(&mut self, name: String) -> Try<PlaylistId>;
 
-    fn playlists(&self) -> Result<Box<dyn Iterator<Item = Playlist> + '_>, Self::Error>;
+    fn get_playlist(&self, id: PlaylistId) -> Try<Option<Playlist>>;
 
     fn add_track_to_playlist(
         &mut self,
         track_id: LibraryTrackId,
         playlist_id: PlaylistId,
-    ) -> Result<bool, Self::Error>;
+    ) -> Try<()>;
 
-    fn resolve(&self, search_results: SearchResults) -> Result<SearchResults, Self::Error>;
+    fn resolve(&self, search_results: SearchResults) -> Try<SearchResults>;
 
     fn add_local_track(&self, file_path: String) -> Try<LibraryTrackId> {
         let (track, album, artist) = if file_path.ends_with(".mp3") {
-            self.read_mp3(file_path)
+            self.read_mp3(file_path)?
         } else if file_path.ends_with(".flac") {
-            self.read_flac(file_path)
+            self.read_flac(file_path)?
         } else {
-            return Err(anyhow!(f!("unsupported file type {file_path}")));
+            return Err(anyhow!("unsupported file type {}", file_path));
         };
-        Ok(
-            if let Some((album_id, _, artist_id)) = self.find_album(&album.title)? {
-                self.create_track(track, artist_id, album_id)?
-            } else if let Some((artist_id, _)) = self.find_artist(&artist.name)? {
-                let album_id = self.create_album(album, artist_id)?;
-                self.create_track(track, artist_id, album_id)?
-            } else {
-                let artist_id = self.create_artist(artist)?;
-                let album_id = self.create_album(album, artist_id)?;
-                self.create_track(track, artist_id, album_id)?
-            },
-        )
+        let album_id = self
+            .find_albums(&album.title)?
+            .first()
+            .map(|(id, _)| *id)
+            .unwrap_or(self.create_album(album)?);
+        let artist_id = self
+            .find_artists(&artist.name)?
+            .first()
+            .map(|(id, _)| *id)
+            .unwrap_or(self.create_artist(artist)?);
+        Ok(self.create_track(track, album_id, artist_id)?)
     }
 
-    fn read_mp3(&self, file_path: String) -> (TrackInfo, AlbumInfo, ArtistInfo) {
+    fn read_mp3(&self, file_path: String) -> Try<(TrackInfo, AlbumInfo, ArtistInfo)> {
         // TODO: move mp3 handling code to separate module
         let mp3_tags = Tag::read_from_path(&file_path)?;
         let tag = |name: &str, value: Option<&str>| {
@@ -100,26 +103,29 @@ pub trait Library: Send + Sync + 'static {
                 (frame.data.len() / frame.channels) as f32 / frame.sample_rate as f32;
             duration_secs += seconds_of_audio;
         }
-        (
+        let track_title = tag("TITLE", mp3_tags.title());
+        let album_title = tag("ALBUM", mp3_tags.album());
+        let artist_name = tag("ARTIST", mp3_tags.artist());
+        Ok((
             TrackInfo {
-                title: tag("TITLE", mp3_tags.title()),
+                title: track_title,
                 isrc: None,
                 duration_secs,
                 file_path: Some(file_path),
             },
             AlbumInfo {
-                title: tag("ALBUM", mp3_tags.album()),
+                title: album_title,
                 cover_image_url: None,
                 release_date: None,
             },
             ArtistInfo {
-                name: tag("ARTIST", mp3_tags.artist()),
+                name: artist_name,
                 image_url: None,
             },
-        )
+        ))
     }
 
-    fn read_flac(&self, file_path: String) -> (TrackInfo, AlbumInfo, ArtistInfo) {
+    fn read_flac(&self, file_path: String) -> Try<(TrackInfo, AlbumInfo, ArtistInfo)> {
         let flac = claxon::FlacReader::open(&file_path)?;
         // TODO: move flac handling code to separate module
         let tag = |name: &str| {
@@ -137,31 +143,27 @@ pub trait Library: Send + Sync + 'static {
             .unwrap_or_else(|| panic!("no stream info in {}", file_path))
             as f32)
             / flac.streaminfo().sample_rate as f32;
-        (
+        let track_title = tag("TITLE");
+        let album_title = tag("ALBUM");
+        let artist_name = tag("ARTIST");
+        Ok((
             TrackInfo {
-                title: tag("TITLE"),
+                title: track_title,
                 isrc: None,
                 duration_secs,
                 file_path: Some(file_path),
             },
             AlbumInfo {
-                title: tag("ALBUM"),
+                title: album_title,
                 cover_image_url: None,
                 release_date: None,
             },
             ArtistInfo {
-                name: tag("ARTIST"),
+                name: artist_name,
                 image_url: None,
             },
-        )
+        ))
     }
-
-    fn find_album(
-        &self,
-        title: &str,
-    ) -> Result<Option<(AlbumId, AlbumInfo, ArtistId)>, Self::Error>;
-
-    fn find_artist(&self, name: &str) -> Result<Option<(ArtistId, ArtistInfo)>, Self::Error>;
 }
 
 #[derive(Serialize, Clone)]
@@ -169,7 +171,6 @@ pub struct Track {
     pub track_id: LibraryTrackId,
     // pub external_ids: Vec<ExternalTrackId>,
     pub track_info: TrackInfo,
-    pub file_path: Option<String>,
     pub artist_id: ArtistId,
     pub artist_info: ArtistInfo,
     pub album_id: AlbumId,

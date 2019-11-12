@@ -4,7 +4,7 @@ use crate::api::{EventSink, Payload};
 use crate::bootstrap::bootstrap_library;
 use crate::errors::Try;
 use crate::http;
-use crate::library::{DbLibrary, InMemoryLibrary};
+use crate::library::InMemoryLibrary;
 use crate::model::LoadedTrack;
 use crate::player::PlayerApp;
 use crate::websocket::ws_connection;
@@ -41,9 +41,10 @@ impl Server {
         }));
         let player_app = PlayerApp::new(Arc::clone(&event_sink))?;
         let mut library = InMemoryLibrary::new(Arc::clone(&event_sink));
-        if let Err(e) = bootstrap_library(&mut library) {
-            log::warn!("Did not bootstrap library: {}", e)
-        }
+        // TODO: reenable bootstrapping once library is working
+        //        if let Err(e) = bootstrap_library(&mut library) {
+        //            log::warn!("Did not bootstrap library: {}", e)
+        //        }
         let app = Arc::new(App {
             services: self.services,
             player: player_app,

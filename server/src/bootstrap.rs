@@ -18,13 +18,13 @@ pub fn bootstrap_library(library: &mut impl Library) -> Try<()> {
         let playlist_id = library.create_playlist(playlist)?;
         for playlist_track in tracks {
             log::info!("adding track {} to playlist", playlist_track);
-            let track_id = library.add_track(playlist_track)?;
+            let track_id = library.add_local_track(playlist_track)?;
             library.add_track_to_playlist(track_id, playlist_id)?;
         }
     }
     for track in b.tracks {
         log::info!("adding track {} to library", track);
-        library.add_track(track)?;
+        library.add_local_track(track)?;
     }
     Ok(())
 }

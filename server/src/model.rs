@@ -87,7 +87,7 @@ impl FromStr for AlbumId {
 }
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize)]
-pub struct ArtistId(#[serde(with = "string")] pub i32);
+pub struct ArtistId(#[serde(with = "string")] pub i64);
 
 impl FromStr for ArtistId {
     type Err = Erro;
@@ -97,7 +97,7 @@ impl FromStr for ArtistId {
     }
 }
 
-#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize, Hash)]
 pub struct PlaylistId(#[serde(with = "string")] pub i64);
 
 impl FromStr for PlaylistId {

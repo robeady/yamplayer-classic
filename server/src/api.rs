@@ -2,8 +2,8 @@ pub mod search;
 
 use crate::errors::{Erro, Try};
 use crate::file_completions::complete_file_path;
-use crate::library::{self, DbLibrary, Library, Track};
-use crate::model::{ExternalTrackId, LibraryTrackId, LoadedTrack, PlaylistId, TrackId};
+use crate::library::{Library, Track};
+use crate::model::{ExternalTrackId, LoadedTrack, PlaylistId, TrackId};
 use crate::player::PlayerApp;
 use crate::queue::CurrentTrack;
 use crate::server::{Service, ServiceId};
@@ -15,7 +15,6 @@ use slotmap::{DenseSlotMap, Key};
 use std::collections::{BTreeMap, HashMap};
 use std::convert::Into;
 use std::fs;
-use std::marker::PhantomData;
 use std::sync::Arc;
 
 pub struct App<L: Library> {
@@ -97,9 +96,9 @@ impl<L: Library> App<L> {
             TrackId::Library(lib_track_id) => {
                 let lib = self.library.lock();
                 let track = lib
-                    .get_track(lib_track_id)?
+                    .get_track(*lib_track_id)?
                     .ok_or_else(|| anyhow!("Unknown track {}", track_id))?;
-                if let Some(file_path) = track.file_path {
+                if let Some(file_path) = track.track_info.file_path {
                     log::info!("loading track {} from {}", track_id, file_path);
                     Ok(LoadedTrack {
                         data: fs::read(&file_path)
@@ -130,7 +129,7 @@ impl<L: Library> App<L> {
             .map(|id| {
                 let id: TrackId = id.parse()?;
                 let track = match id {
-                    TrackId::Library(lib_id) => lib.get_track(&lib_id)?,
+                    TrackId::Library(lib_id) => lib.get_track(lib_id)?,
                     TrackId::External(_) => None,
                 };
                 Ok((id, track))
@@ -150,7 +149,7 @@ impl<L: Library> App<L> {
     }
 
     fn add_to_library(&self, track_file_path: String) -> Response {
-        self.library.lock().add_track(track_file_path)?;
+        self.library.lock().add_local_track(track_file_path)?;
         done()
     }
 
@@ -160,13 +159,13 @@ impl<L: Library> App<L> {
 
     fn list_playlists(&self) -> Response {
         #[derive(Serialize)]
-        struct Playlists<'a> {
-            playlists: Vec<PlaylistInfo<'a>>,
+        struct Playlists {
+            playlists: Vec<PlaylistInfo>,
         }
         #[derive(Serialize)]
-        struct PlaylistInfo<'a> {
+        struct PlaylistInfo {
             id: PlaylistId,
-            name: &'a str,
+            name: String,
         }
         ok(&Playlists {
             playlists: self
@@ -176,7 +175,7 @@ impl<L: Library> App<L> {
                 .context("Error loading playlists")?
                 .map(|p| PlaylistInfo {
                     id: p.id,
-                    name: &p.name,
+                    name: p.name,
                 })
                 .collect(),
         })
