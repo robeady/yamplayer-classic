@@ -122,7 +122,7 @@ const TrackList = observer((props: { listing: "library" | { playlistId: string }
                     padding-left: 0;
                 `}>
                 {(tracks || []).map(t => (
-                    <TrackRow track={t} enqueue={() => playback.enqueue(t.id)} />
+                    <TrackRow track={t} enqueue={() => playback.enqueue(t.track_id)} />
                 ))}
             </ol>
         </div>
@@ -137,7 +137,7 @@ function TrackRow(props: { track: Track; enqueue: () => void }) {
                 display: flex;
                 text-align: left;
             `}
-            key={props.track.id}>
+            key={props.track.track_id}>
             <div
                 className={css`
                     flex-basis: 40%;
@@ -145,19 +145,19 @@ function TrackRow(props: { track: Track; enqueue: () => void }) {
                 `}
                 onClick={props.enqueue}
                 title="Click to enqueue">
-                {props.track.title}
+                {props.track.track_info.title}
             </div>
             <div
                 className={css`
                     flex-basis: 30%;
                 `}>
-                {props.track.artist}
+                {props.track.artist_info.name}
             </div>
             <div
                 className={css`
                     flex-basis: 30%;
                 `}>
-                {props.track.album}
+                {props.track.album_info.title}
             </div>
         </li>
     )
@@ -176,8 +176,8 @@ const NowPlaying = observer(() => {
                 `}>
                 <TrackSummary
                     art="https://i.scdn.co/image/93852b7922b792c49e9198e09314c6b885eb1ed2"
-                    artist={(track && track.artist) || ""}
-                    track={(track && track.title) || ""}
+                    artist={(track && track.artist_info.name) || ""}
+                    track={(track && track.track_info.title) || ""}
                 />
                 <PlaybackControls
                     playing={pb.playing}
