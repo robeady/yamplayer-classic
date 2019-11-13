@@ -21,16 +21,6 @@ pub struct Track {
     pub album_info: AlbumInfo,
 }
 
-//#[derive(Debug, Serialize, Deserialize)]
-//pub struct Track {
-//    pub file_path: String,
-//    pub title: String,
-//    pub artist: String,
-//    pub album: String,
-//    pub duration_secs: f32,
-//    pub external_id: Option<String>,
-//}
-
 #[derive(Serialize, Clone)]
 pub struct Playlist {
     pub id: PlaylistId,

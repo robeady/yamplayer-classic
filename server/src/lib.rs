@@ -5,6 +5,7 @@ pub mod api;
 mod bootstrap;
 pub mod errors;
 mod file_completions;
+mod file_formats;
 mod http;
 mod library;
 pub mod model;

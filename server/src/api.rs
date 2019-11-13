@@ -1,6 +1,6 @@
 pub mod search;
 
-use crate::errors::{Erro, Try};
+use crate::errors::Try;
 use crate::file_completions::complete_file_path;
 use crate::library::{Library, Track};
 use crate::model::{ExternalTrackId, LoadedTrack, PlaylistId, TrackId};
@@ -125,7 +125,7 @@ impl App {
 
     fn get_tracks(&self, track_ids: &[String]) -> Response {
         let lib = self.library.lock();
-        let tracks: Result<BTreeMap<TrackId, Option<Track>>, Erro> = track_ids
+        let tracks: Result<BTreeMap<TrackId, Option<Track>>, anyhow::Error> = track_ids
             .iter()
             .map(|id| {
                 let id: TrackId = id.parse()?;
@@ -249,8 +249,8 @@ fn payload(data: &impl serde::Serialize) -> Payload {
 //    trace: Backt,
 //}
 
-impl From<Erro> for Payload {
-    fn from(e: Erro) -> Self {
+impl From<anyhow::Error> for Payload {
+    fn from(e: anyhow::Error) -> Self {
         // debug print the error
         payload(&f!("{e:?}"))
     }

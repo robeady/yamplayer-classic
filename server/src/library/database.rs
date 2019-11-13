@@ -3,6 +3,7 @@ use super::tables;
 use crate::api::search::SearchResults;
 use crate::api::EventSink;
 use crate::errors::Try;
+use crate::file_formats;
 use crate::library::{Playlist, Track};
 use crate::model::{
     AlbumId, AlbumInfo, ArtistId, ArtistInfo, LibraryTrackId, PlaylistId, TrackInfo,
@@ -11,12 +12,8 @@ use anyhow::anyhow;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 use diesel::{insert_into, select};
-use fstrings::{f, format_args_f};
-use id3::Tag;
 use log;
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::BufReader;
 use std::sync::Arc;
 use thread_local::CachedThreadLocal;
 
@@ -233,9 +230,9 @@ impl Library {
 
     pub fn add_local_track(&self, file_path: String) -> Try<LibraryTrackId> {
         let (track, album, artist) = if file_path.ends_with(".mp3") {
-            self.read_mp3(file_path)?
+            file_formats::mp3::read_metadata(file_path)?
         } else if file_path.ends_with(".flac") {
-            self.read_flac(file_path)?
+            file_formats::flac::read_metadata(file_path)?
         } else {
             return Err(anyhow!("unsupported file type {}", file_path));
         };
@@ -250,98 +247,6 @@ impl Library {
             .map(|(id, _)| *id)
             .unwrap_or(self.create_artist(artist)?);
         Ok(self.create_track(track, album_id, artist_id)?)
-    }
-
-    fn read_mp3(&self, file_path: String) -> Try<(TrackInfo, AlbumInfo, ArtistInfo)> {
-        // TODO: move mp3 handling code to separate module
-        let mp3_tags = Tag::read_from_path(&file_path)?;
-        let tag = |name: &str, value: Option<&str>| {
-            value.map(|t| t.to_string()).unwrap_or_else(|| {
-                log::warn!("no {} tag in {}", name, file_path);
-                f!("UNKNOWN {name}")
-            })
-        };
-        let mut mp3 = minimp3::Decoder::new(BufReader::new(File::open(&file_path)?));
-        let mut duration_secs = 0_f32;
-        loop {
-            let frame_result = mp3.next_frame();
-            let frame = match frame_result {
-                Ok(frame) => frame,
-                // An error caused by some IO operation required during decoding.
-                Err(minimp3::Error::Io(e)) => return Err(e.into()),
-                // The decoder tried to parse a frame from its internal buffer, but there was not enough.
-                Err(minimp3::Error::InsufficientData) => {
-                    panic!("not enough data in encoder buffer??? {}", file_path)
-                }
-                // The decoder encountered data which was not a frame (ie, ID3 data), and skipped it.
-                Err(minimp3::Error::SkippedData) => continue,
-                // The decoder has reached the end of the provided reader.
-                Err(minimp3::Error::Eof) => break,
-            };
-            let seconds_of_audio =
-                (frame.data.len() / frame.channels) as f32 / frame.sample_rate as f32;
-            duration_secs += seconds_of_audio;
-        }
-        let track_title = tag("TITLE", mp3_tags.title());
-        let album_title = tag("ALBUM", mp3_tags.album());
-        let artist_name = tag("ARTIST", mp3_tags.artist());
-        Ok((
-            TrackInfo {
-                title: track_title,
-                isrc: None,
-                duration_secs,
-                file_path: Some(file_path),
-            },
-            AlbumInfo {
-                title: album_title,
-                cover_image_url: None,
-                release_date: None,
-            },
-            ArtistInfo {
-                name: artist_name,
-                image_url: None,
-            },
-        ))
-    }
-
-    fn read_flac(&self, file_path: String) -> Try<(TrackInfo, AlbumInfo, ArtistInfo)> {
-        let flac = claxon::FlacReader::open(&file_path)?;
-        // TODO: move flac handling code to separate module
-        let tag = |name: &str| {
-            flac.get_tag(name)
-                .next()
-                .map(|t| t.to_string())
-                .unwrap_or_else(|| {
-                    log::warn!("no {} tag in {}", name, file_path);
-                    f!("UNKNOWN {name}")
-                })
-        };
-        let duration_secs = (flac
-            .streaminfo()
-            .samples
-            .unwrap_or_else(|| panic!("no stream info in {}", file_path))
-            as f32)
-            / flac.streaminfo().sample_rate as f32;
-        let track_title = tag("TITLE");
-        let album_title = tag("ALBUM");
-        let artist_name = tag("ARTIST");
-        Ok((
-            TrackInfo {
-                title: track_title,
-                isrc: None,
-                duration_secs,
-                file_path: Some(file_path),
-            },
-            AlbumInfo {
-                title: album_title,
-                cover_image_url: None,
-                release_date: None,
-            },
-            ArtistInfo {
-                name: artist_name,
-                image_url: None,
-            },
-        ))
     }
 }
 
@@ -372,34 +277,7 @@ embed_migrations!();
 
 no_arg_sql_function!(last_insert_rowid, diesel::sql_types::BigInt);
 
-/// returns the rowid of the last row inserted by this database connection
+/// Returns the rowid of the last row inserted by this database connection.
 fn last_id(con: &SqliteConnection) -> diesel::result::QueryResult<i64> {
     select(last_insert_rowid).first(con)
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::library::{Library, Library};
-    use thread_local::CachedThreadLocal;
-
-    #[test]
-    fn foo() {
-        println!("wd: {}", std::env::current_dir().unwrap().to_str().unwrap());
-        println!("hello world");
-        let mut d = Library {
-            connection: CachedThreadLocal::new(),
-            file_path: "cxz ".to_string(),
-        };
-        println!("id was {}", d.create_playlist("foo".to_string()).unwrap().0);
-        //        println!(
-        //            "{:?}",
-        //            diesel::debug_query::<Sqlite, _>(&insert_into(playlists::table).values(
-        //                tables::Playlist {
-        //                    playlist_id: None,
-        //                    name: "steve".to_string(),
-        //                }
-        //            ))
-        //        );
-        assert!(false)
-    }
 }

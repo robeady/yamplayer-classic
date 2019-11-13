@@ -1,4 +1,4 @@
-use crate::errors::{Erro, Try};
+use crate::errors::Try;
 use crate::queue::CurrentTrack;
 use crate::serde::string;
 use crate::server::ServiceId;
@@ -23,7 +23,7 @@ serialize_with_display!(TrackId);
 deserialize_with_parse!(TrackId);
 
 impl FromStr for TrackId {
-    type Err = Erro;
+    type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parts: Vec<&str> = s.splitn(2, ':').collect();
@@ -79,7 +79,7 @@ fn parse_id<T: FromStr>(s: &str, type_name: &str) -> Try<T> {
 pub struct AlbumId(#[serde(with = "string")] pub i64);
 
 impl FromStr for AlbumId {
-    type Err = Erro;
+    type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(AlbumId(parse_id(s, "album")?))
@@ -90,7 +90,7 @@ impl FromStr for AlbumId {
 pub struct ArtistId(#[serde(with = "string")] pub i64);
 
 impl FromStr for ArtistId {
-    type Err = Erro;
+    type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(ArtistId(parse_id(s, "artist")?))
@@ -101,7 +101,7 @@ impl FromStr for ArtistId {
 pub struct PlaylistId(#[serde(with = "string")] pub i64);
 
 impl FromStr for PlaylistId {
-    type Err = Erro;
+    type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(PlaylistId(parse_id(s, "playlist")?))
