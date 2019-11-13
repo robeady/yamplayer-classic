@@ -8,10 +8,7 @@ use std::sync::Arc;
 use warp::ws::{Message, WebSocket};
 use warp::{Future, Sink, Stream};
 
-pub fn ws_connection<L: Library>(
-    app: Arc<App<L>>,
-    websocket: WebSocket,
-) -> impl Future<Item = (), Error = ()> {
+pub fn ws_connection(app: Arc<App>, websocket: WebSocket) -> impl Future<Item = (), Error = ()> {
     log::info!("establishing WS connection");
 
     let (socket_tx, socket_rx) = websocket.split();
@@ -59,10 +56,7 @@ pub fn ws_connection<L: Library>(
 #[derive(Debug, Deserialize)]
 struct WebSocketRequest(String, api::Request);
 
-fn handle_message<L: Library>(
-    app: Arc<App<L>>,
-    message_text: &str,
-) -> impl Future<Item = Message, Error = ()> {
+fn handle_message(app: Arc<App>, message_text: &str) -> impl Future<Item = Message, Error = ()> {
     let WebSocketRequest(id, request) =
         serde_json::from_str(message_text).expect("invalid json in websocket message");
     future::poll_fn(move || tokio_threadpool::blocking(|| app.handle_request(&request)))

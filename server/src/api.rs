@@ -17,10 +17,11 @@ use std::convert::Into;
 use std::fs;
 use std::sync::Arc;
 
-pub struct App<L: Library> {
+pub struct App {
     pub services: HashMap<ServiceId, Box<dyn Service>>,
     pub player: PlayerApp,
-    pub library: Mutex<L>,
+    // TODO: no need for a mutex any more
+    pub library: Mutex<Library>,
     pub event_sink: Arc<EventSink>,
 }
 
@@ -58,7 +59,7 @@ pub enum Request {
     },
 }
 
-impl<L: Library> App<L> {
+impl App {
     pub fn handle_request(&self, request: &Request) -> Response {
         use Request::*;
         #[allow(clippy::unit_arg)]

@@ -32,3 +32,4 @@ anyhow = "1.0.15"
 thread_local = "1.0.0"
 libsqlite3-sys = { version = "0.16.0", features = ["bundled"] }
 diesel = { version = "1.4.3", features = ["sqlite"] }
+diesel_migrations = "1.4.0"

@@ -6,7 +6,7 @@ use warp::http::status::StatusCode;
 use warp::http::Response;
 use warp::Reply;
 
-pub fn api_handler<L: Library>(app: Arc<api::App<L>>, request: api::Request) -> impl Reply {
+pub fn api_handler(app: Arc<api::App>, request: api::Request) -> impl Reply {
     to_http_response(app.handle_request(&request))
 }
 
