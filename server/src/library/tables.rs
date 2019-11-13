@@ -3,7 +3,7 @@
 #![allow(unused)]
 #![allow(clippy::all)]
 
-use super::schema::{albums, artists, tracks, playlists, playlist_tracks};
+use super::schema::*;
 
 
 #[derive(Identifiable, Queryable, Insertable)]
