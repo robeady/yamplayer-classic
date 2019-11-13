@@ -203,34 +203,10 @@ impl App {
     }
 }
 
-//impl<'a> From<(LibraryTrackId, &'a library::Track)> for Track<'a> {
-//    fn from(t: (LibraryTrackId, &'a library::Track)) -> Self {
-//        let (id, track) = t;
-//        Track {
-//            id: id.0.to_string(),
-//            file_path: &track.file_path,
-//            title: &track.title,
-//            artist: &track.artist,
-//            album: &track.album,
-//            duration_secs: track.duration_secs,
-//        }
-//    }
-//}
-
 #[derive(Serialize)]
 struct LibraryListing {
     tracks: Vec<Track>,
 }
-
-//#[derive(Debug, Serialize, Deserialize)]
-//pub struct Track<'a> {
-//    pub id: String,
-//    pub file_path: &'a str,
-//    pub title: &'a str,
-//    pub artist: &'a str,
-//    pub album: &'a str,
-//    pub duration_secs: f32,
-//}
 
 #[derive(Debug, Clone)]
 pub struct Payload {
@@ -242,12 +218,6 @@ fn payload(data: &impl serde::Serialize) -> Payload {
         json: serde_json::to_string(data).expect("payload serialization failed"),
     }
 }
-
-//#[derive(Serialize)]
-//struct ErrorPayload {
-//    message: String,
-//    trace: Backt,
-//}
 
 impl From<anyhow::Error> for Payload {
     fn from(e: anyhow::Error) -> Self {

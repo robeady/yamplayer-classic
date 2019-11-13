@@ -11,8 +11,7 @@ use crate::model::{
 use anyhow::anyhow;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
-use diesel::{insert_into, select};
-use log;
+use diesel::{insert_into, select, sql_types};
 use std::collections::HashMap;
 use std::sync::Arc;
 use thread_local::CachedThreadLocal;
@@ -148,16 +147,13 @@ impl Library {
 
     pub fn create_playlist(&self, name: String) -> Try<PlaylistId> {
         let c = self.connection()?;
-        log::info!("inserting playlist");
         insert_into(playlists::table)
             .values(tables::Playlist {
                 playlist_id: None,
                 name,
             })
             .execute(c)?;
-        log::info!("finding id");
         let id = last_id(c)?;
-        log::info!("got it");
         Ok(PlaylistId(id))
     }
 
@@ -221,7 +217,7 @@ impl Library {
         Ok(embedded_migrations::run(self.connection()?)?)
     }
 
-    fn connection(&self) -> diesel::ConnectionResult<&SqliteConnection> {
+    fn connection(&self) -> ConnectionResult<&SqliteConnection> {
         // TODO: create if not open yet?
         // TODO: enforce foreign key constraints
         self.connection
@@ -275,9 +271,9 @@ fn into_track((track, album, artist): (tables::Track, tables::Album, tables::Art
 
 embed_migrations!();
 
-no_arg_sql_function!(last_insert_rowid, diesel::sql_types::BigInt);
+no_arg_sql_function!(last_insert_rowid, sql_types::BigInt);
 
 /// Returns the rowid of the last row inserted by this database connection.
-fn last_id(con: &SqliteConnection) -> diesel::result::QueryResult<i64> {
+fn last_id(con: &SqliteConnection) -> QueryResult<i64> {
     select(last_insert_rowid).first(con)
 }
