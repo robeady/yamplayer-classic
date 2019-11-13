@@ -1,5 +1,4 @@
 use crate::api;
-use crate::library::Library;
 use std::sync::Arc;
 use warp::http::header::CONTENT_TYPE;
 use warp::http::status::StatusCode;

@@ -45,8 +45,8 @@ impl Server {
             chrono::Local::now().format("%Y-%m-%d_%H-%M-%S")
         );
         log::info!("opening database file {}", database_path);
-        let mut library = Library::new(database_path, Arc::clone(&event_sink))?;
-        if let Err(e) = bootstrap_library(&mut library) {
+        let library = Library::new(database_path, Arc::clone(&event_sink))?;
+        if let Err(e) = bootstrap_library(&library) {
             log::warn!("Did not bootstrap library: {}", e)
         }
         let app = Arc::new(App {

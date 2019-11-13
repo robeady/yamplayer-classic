@@ -1,6 +1,5 @@
 use crate::api;
 use crate::api::{App, EventDestination, Payload};
-use crate::library::Library;
 use futures::future;
 use futures::sync::mpsc::{unbounded, UnboundedSender};
 use serde_derive::Deserialize;
