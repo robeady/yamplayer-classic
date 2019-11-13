@@ -12,6 +12,7 @@ struct Bootstrap {
 }
 
 pub fn bootstrap_library(library: &Library) -> Try<()> {
+    log::info!("beginning bootstrap");
     library.in_transaction(|| {
         let b: Bootstrap = serde_yaml::from_reader(BufReader::new(File::open("bootstrap.yml")?))?;
         for (playlist, tracks) in b.playlists {
@@ -28,5 +29,7 @@ pub fn bootstrap_library(library: &Library) -> Try<()> {
             library.add_local_track(track)?;
         }
         Ok(())
-    })
+    })?;
+    log::info!("bootstrap complete");
+    Ok(())
 }
