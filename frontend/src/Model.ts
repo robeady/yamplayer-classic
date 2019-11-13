@@ -1,10 +1,12 @@
 export interface Track {
-    id: string
-    file_path: string
-    title: string
-    artist: string
-    album: string
-    duration_secs: number
+    track_id: string
+    // external_ids: Vec<ExternalTrackId>,
+    track_info: TrackInfo
+    file_path: string | null
+    artist_id: string
+    artist_info: ArtistInfo
+    album_id: string
+    album_info: AlbumInfo
 }
 
 export interface PlaybackTiming {

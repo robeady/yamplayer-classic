@@ -40,8 +40,13 @@ impl Server {
             log::info!("event: {}", payload.json)
         }));
         let player_app = PlayerApp::new(Arc::clone(&event_sink))?;
-        let mut library = Library::new(Arc::clone(&event_sink));
-        if let Err(e) = bootstrap_library(&mut library) {
+        let database_path = format!(
+            "database-{}.sqlite",
+            chrono::Local::now().format("%Y-%m-%d_%H-%M-%S")
+        );
+        log::info!("opening database file {}", database_path);
+        let library = Library::new(database_path, Arc::clone(&event_sink))?;
+        if let Err(e) = bootstrap_library(&library) {
             log::warn!("Did not bootstrap library: {}", e)
         }
         let app = Arc::new(App {

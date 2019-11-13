@@ -1,4 +1,4 @@
-use crate::errors::{Erro, Try};
+use crate::errors::Try;
 use crate::queue::CurrentTrack;
 use crate::serde::string;
 use crate::server::ServiceId;
@@ -23,7 +23,7 @@ serialize_with_display!(TrackId);
 deserialize_with_parse!(TrackId);
 
 impl FromStr for TrackId {
-    type Err = Erro;
+    type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parts: Vec<&str> = s.splitn(2, ':').collect();
@@ -51,7 +51,7 @@ impl Display for TrackId {
 }
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize)]
-pub struct LibraryTrackId(#[serde(with = "string")] pub u64);
+pub struct LibraryTrackId(#[serde(with = "string")] pub i64);
 
 #[derive(Ord, PartialOrd, Eq, PartialEq, Clone)]
 pub struct ExternalTrackId {
@@ -76,10 +76,10 @@ fn parse_id<T: FromStr>(s: &str, type_name: &str) -> Try<T> {
 }
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize)]
-pub struct AlbumId(#[serde(with = "string")] pub u64);
+pub struct AlbumId(#[serde(with = "string")] pub i64);
 
 impl FromStr for AlbumId {
-    type Err = Erro;
+    type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(AlbumId(parse_id(s, "album")?))
@@ -87,44 +87,45 @@ impl FromStr for AlbumId {
 }
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize)]
-pub struct ArtistId(#[serde(with = "string")] pub u32);
+pub struct ArtistId(#[serde(with = "string")] pub i64);
 
 impl FromStr for ArtistId {
-    type Err = Erro;
+    type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(ArtistId(parse_id(s, "artist")?))
     }
 }
 
-#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize)]
-pub struct PlaylistId(#[serde(with = "string")] pub u64);
+#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize, Hash)]
+pub struct PlaylistId(#[serde(with = "string")] pub i64);
 
 impl FromStr for PlaylistId {
-    type Err = Erro;
+    type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(PlaylistId(parse_id(s, "playlist")?))
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct TrackInfo {
     pub title: String,
     pub isrc: Option<String>,
     pub duration_secs: f32,
+    pub file_path: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct ArtistInfo {
     pub name: String,
-    pub image_url: Url,
+    pub image_url: Option<Url>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct AlbumInfo {
     pub title: String,
-    pub cover_image_url: Url,
+    pub cover_image_url: Option<Url>,
     pub release_date: Option<NaiveDate>,
 }
 

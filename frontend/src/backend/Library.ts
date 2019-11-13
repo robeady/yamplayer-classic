@@ -51,12 +51,12 @@ export class Library {
     @action
     private populateLibrary = (library: { tracks: Track[] }) => {
         for (const track of library.tracks) {
-            if (!this.tracks.has(track.id)) {
-                this.tracks.set(track.id, track)
+            if (!this.tracks.has(track.track_id)) {
+                this.tracks.set(track.track_id, track)
             }
         }
         this.libraryTrackIds = iterate(library.tracks)
-            .map(track => track.id)
+            .map(track => track.track_id)
             .toSet()
     }
 

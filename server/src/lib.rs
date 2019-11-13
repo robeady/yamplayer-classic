@@ -5,6 +5,7 @@ pub mod api;
 mod bootstrap;
 pub mod errors;
 mod file_completions;
+mod file_formats;
 mod http;
 mod library;
 pub mod model;
@@ -14,3 +15,7 @@ mod queue;
 pub mod serde;
 pub mod server;
 mod websocket;
+#[macro_use]
+extern crate diesel;
+#[macro_use]
+extern crate diesel_migrations;
