@@ -7,7 +7,7 @@ use crate::model::{ExternalTrackId, LoadedTrack, PlaylistId, TrackId};
 use crate::player::PlayerApp;
 use crate::queue::CurrentTrack;
 use crate::server::{Service, ServiceId};
-use anyhow::{anyhow, Context};
+use anyhow::Context;
 use fstrings::{f, format_args_f};
 use parking_lot::{Mutex, RwLock};
 use serde_derive::{Deserialize, Serialize};

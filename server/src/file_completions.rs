@@ -1,5 +1,4 @@
 use crate::errors::Try;
-use anyhow::anyhow;
 use std::path::Path;
 
 pub fn complete_file_path(prefix: &str) -> Try<Vec<String>> {

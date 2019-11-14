@@ -3,7 +3,6 @@ use crate::queue::CurrentTrack;
 use crate::serde::string;
 use crate::server::ServiceId;
 use crate::{deserialize_with_parse, serialize_with_display};
-use anyhow::anyhow;
 use chrono::NaiveDate;
 use fstrings::{f, format_args_f};
 use serde::export::fmt::Error;

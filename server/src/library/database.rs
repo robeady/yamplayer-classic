@@ -8,7 +8,6 @@ use crate::library::{Playlist, Track};
 use crate::model::{
     AlbumId, AlbumInfo, ArtistId, ArtistInfo, LibraryTrackId, PlaylistId, TrackInfo,
 };
-use anyhow::anyhow;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 use diesel::{insert_into, select, sql_types};
