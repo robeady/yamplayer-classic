@@ -6,10 +6,13 @@ use crate::errors::Try;
 use crate::file_formats;
 use crate::library::{Playlist, Track};
 use crate::model::{
-    AlbumId, AlbumInfo, ArtistId, ArtistInfo, LibraryTrackId, PlaylistId, TrackInfo,
+    AlbumId, AlbumInfo, ArtistId, ArtistInfo, LibraryId, LibraryTrackId, PlaylistId, TrackInfo,
 };
+use diesel::debug_query;
+use diesel::dsl::exists;
 use diesel::prelude::*;
-use diesel::sqlite::SqliteConnection;
+use diesel::query_builder::QueryFragment;
+use diesel::sqlite::{Sqlite, SqliteConnection};
 use diesel::{insert_into, select, sql_types};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -25,15 +28,17 @@ impl Library {
         let rows: Vec<(tables::Track, tables::Album, tables::Artist)> = tracks::table
             .inner_join(albums::table)
             .inner_join(artists::table)
+            .log()
             .load(self.connection()?)?;
         Ok(rows.into_iter().map(into_track))
     }
 
-    pub fn get_track(&self, id: LibraryTrackId) -> Try<Option<Track>> {
+    pub fn get_track(&self, id: LibraryId<crate::model::Track>) -> Try<Option<Track>> {
         let row: Option<(tables::Track, tables::Album, tables::Artist)> = tracks::table
             .find(id.0)
             .inner_join(albums::table)
             .inner_join(artists::table)
+            .log()
             .first(self.connection()?)
             .optional()?;
         Ok(row.map(into_track))
@@ -57,6 +62,7 @@ impl Library {
                 duration_secs: track.duration_secs,
                 file_path: track.file_path,
             })
+            .log()
             .execute(c)?;
         Ok(LibraryTrackId(last_id(c)?))
     }
@@ -70,6 +76,7 @@ impl Library {
                 cover_image_url: album.cover_image_url.map(|u| u.into_string()),
                 release_date: album.release_date.map(|d| d.to_string()),
             })
+            .log()
             .execute(c)?;
         Ok(AlbumId(last_id(c)?))
     }
@@ -77,6 +84,7 @@ impl Library {
     pub fn find_albums(&self, title: &str) -> Try<Vec<(AlbumId, AlbumInfo)>> {
         let albums: Vec<tables::Album> = albums::table
             .filter(albums::title.eq(title))
+            .log()
             .load(self.connection()?)?;
         Ok(albums
             .into_iter()
@@ -101,6 +109,7 @@ impl Library {
                 name: artist.name,
                 image_url: artist.image_url.map(|u| u.into_string()),
             })
+            .log()
             .execute(c)?;
         Ok(ArtistId(last_id(c)?))
     }
@@ -108,6 +117,7 @@ impl Library {
     pub fn find_artists(&self, name: &str) -> Try<Vec<(ArtistId, ArtistInfo)>> {
         let artists: Vec<tables::Artist> = artists::table
             .filter(artists::name.eq(name))
+            .log()
             .load(self.connection()?)?;
         Ok(artists
             .into_iter()
@@ -126,6 +136,7 @@ impl Library {
     pub fn playlists(&self) -> Try<impl Iterator<Item = Playlist>> {
         let rows: Vec<(tables::Playlist, tables::PlaylistTrack)> = playlists::table
             .inner_join(playlist_tracks::table)
+            .log()
             .load(self.connection()?)?;
         let mut name_and_track_ids_by_playlist_id = HashMap::new();
         for (playlist, playlist_track) in rows {
@@ -151,6 +162,7 @@ impl Library {
                 playlist_id: None,
                 name,
             })
+            .log()
             .execute(c)?;
         let id = last_id(c)?;
         Ok(PlaylistId(id))
@@ -160,6 +172,7 @@ impl Library {
         let rows: Vec<(tables::Playlist, tables::PlaylistTrack)> = playlists::table
             .inner_join(playlist_tracks::table)
             .filter(playlists::playlist_id.eq(Some(id.0)))
+            .log()
             .load(self.connection()?)?;
         Ok(if rows.is_empty() {
             None
@@ -177,6 +190,12 @@ impl Library {
         })
     }
 
+    pub fn playlist_exists(&self, id: PlaylistId) -> Try<bool> {
+        Ok(select(exists(playlists::table.find(id.0)))
+            .log()
+            .get_result(self.connection()?)?)
+    }
+
     pub fn add_track_to_playlist(
         &self,
         track_id: LibraryTrackId,
@@ -189,6 +208,7 @@ impl Library {
                 playlist_id: playlist_id.0,
                 track_id: track_id.0,
             })
+            .log()
             .execute(c)?;
         // TODO: what if track id or playlist id don't exist (causes foreign key error)
         Ok(())
@@ -265,6 +285,17 @@ fn into_track((track, album, artist): (tables::Track, tables::Album, tables::Art
             cover_image_url: album.cover_image_url.map(|u| u.parse().unwrap()),
             release_date: album.release_date.map(|d| d.parse().unwrap()),
         },
+    }
+}
+
+trait QueryFragmentLogExt {
+    fn log(self) -> Self;
+}
+
+impl<Q: QueryFragment<Sqlite>> QueryFragmentLogExt for Q {
+    fn log(self) -> Self {
+        log::info!("{}", debug_query::<Sqlite, _>(&self));
+        self
     }
 }
 

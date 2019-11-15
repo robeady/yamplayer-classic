@@ -1,4 +1,4 @@
-use crate::model::TrackId;
+use crate::model::{Id, Track};
 use crate::serde::string;
 use cpal::Format;
 use rodio::source::UniformSourceIterator;
@@ -48,7 +48,7 @@ where
 
     pub fn enqueue_last<T: Sample + Send + 'static>(
         &mut self,
-        id: TrackId,
+        id: Id<Track>,
         duration_secs: f32,
         source: Box<dyn Source<Item = T> + Send>,
     ) -> EntryMarker {
@@ -63,7 +63,7 @@ where
 
     pub fn enqueue_next<T: Sample + Send + 'static>(
         &mut self,
-        id: TrackId,
+        id: Id<Track>,
         duration_secs: f32,
         source: Box<dyn Source<Item = T> + Send>,
     ) -> EntryMarker {
@@ -80,7 +80,7 @@ where
 
     fn create_track<T: Sample + Send + 'static>(
         &mut self,
-        id: TrackId,
+        id: Id<Track>,
         duration_secs: f32,
         source: Box<dyn Source<Item = T> + Send>,
     ) -> QueueItem<S> {
@@ -191,7 +191,7 @@ struct QueueItem<S> {
 
 #[derive(Serialize, Clone)]
 pub struct EnqueuedTrack {
-    pub id: TrackId,
+    pub id: Id<Track>,
     pub duration_secs: f32,
     pub entry_marker: EntryMarker,
 }

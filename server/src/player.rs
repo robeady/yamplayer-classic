@@ -1,7 +1,7 @@
 use crate::api::Event::{PlaybackChanged, VolumeChanged};
 use crate::api::{Event, EventSink};
 use crate::errors::Try;
-use crate::model::{LoadedTrack, PlaybackState, TrackId};
+use crate::model::{Id, LoadedTrack, PlaybackState, Track, TrackId};
 use crate::playback;
 use crate::queue::{Queue, QueueCallback};
 use log;
@@ -87,7 +87,7 @@ impl PlayerApp {
         self.queue.lock().skip_current();
     }
 
-    pub fn add_to_queue(&self, track_id: TrackId, track: LoadedTrack) -> Try<()> {
+    pub fn add_to_queue(&self, track_id: Id<Track>, track: LoadedTrack) -> Try<()> {
         let source: Decoder<_> = Decoder::new(Cursor::new(track.data))?;
         log::info!(
             "enqueuing track {} with length: {}:{:02}",

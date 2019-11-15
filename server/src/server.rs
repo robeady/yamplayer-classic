@@ -1,27 +1,17 @@
-use crate::api::search::SearchResults;
 use crate::api::{App, Request};
 use crate::api::{EventSink, Payload};
 use crate::bootstrap::bootstrap_library;
 use crate::errors::Try;
 use crate::http;
 use crate::library::Library;
-use crate::model::LoadedTrack;
 use crate::player::PlayerApp;
+use crate::services::{Service, ServiceId};
 use crate::websocket::ws_connection;
 use log;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
 use warp::Filter;
-
-#[derive(Eq, PartialEq, Hash, Ord, PartialOrd, Clone)]
-pub struct ServiceId(pub String);
-
-pub trait Service: Send + Sync {
-    fn id(&self) -> ServiceId;
-    fn search(&self, query: &str) -> Try<SearchResults>;
-    fn fetch(&self, track_id: &str) -> Try<LoadedTrack>;
-}
 
 pub struct Server {
     services: HashMap<ServiceId, Box<dyn Service>>,

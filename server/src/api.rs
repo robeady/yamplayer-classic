@@ -3,10 +3,12 @@ pub mod search;
 use crate::errors::Try;
 use crate::file_completions::complete_file_path;
 use crate::library::{Library, Track};
-use crate::model::{ExternalTrackId, LoadedTrack, PlaylistId, TrackId};
+use crate::model::{
+    ExternalId, ExternalTrackId, Id, LibraryTrackId, LoadedTrack, PlaylistId, TrackId,
+};
 use crate::player::PlayerApp;
 use crate::queue::CurrentTrack;
-use crate::server::{Service, ServiceId};
+use crate::services::{Service, ServiceId};
 use anyhow::Context;
 use fstrings::{f, format_args_f};
 use parking_lot::{Mutex, RwLock};
@@ -54,6 +56,10 @@ pub enum Request {
     GetPlaylist {
         id: String,
     },
+    AddTrackToPlaylist {
+        track_id: String,
+        playlist_id: String,
+    },
     Search {
         query: String,
     },
@@ -81,6 +87,10 @@ impl App {
                 .lock()
                 .get_playlist(id.parse()?)
                 .context("failed to get playlist")?),
+            AddTrackToPlaylist {
+                track_id,
+                playlist_id,
+            } => self.add_track_to_playlist(track_id, playlist_id),
             Search { ref query } => self.search(query),
         }
     }
@@ -92,9 +102,40 @@ impl App {
         done()
     }
 
-    fn load_track(&self, track_id: &TrackId) -> Try<LoadedTrack> {
+    //    fn load_track(&self, track_id: &TrackId) -> Try<LoadedTrack> {
+    //        match track_id {
+    //            TrackId::Library(lib_track_id) => {
+    //                let lib = self.library.lock();
+    //                let track = lib
+    //                    .get_track(*lib_track_id)?
+    //                    .ok_or_else(|| anyhow!("Unknown track {}", track_id))?;
+    //                if let Some(file_path) = track.track_info.file_path {
+    //                    log::info!("loading track {} from {}", track_id, file_path);
+    //                    Ok(LoadedTrack {
+    //                        data: fs::read(&file_path)
+    //                            .with_context(|| f!("failed to load track file {}", file_path))?,
+    //                        duration_secs: track.track_info.duration_secs,
+    //                    })
+    //                } else {
+    //                    Err(anyhow!("no file available for track {}", track_id))
+    //                }
+    //            }
+    //            TrackId::External(ExternalTrackId {
+    //                ref service_id,
+    //                ref track_id,
+    //            }) => {
+    //                let svc = self
+    //                    .services
+    //                    .get(service_id)
+    //                    .ok_or_else(|| anyhow!("unknown service for track ID {}", track_id))?;
+    //                svc.fetch(track_id)
+    //            }
+    //        }
+    //    }
+
+    fn load_track(&self, track_id: &Id<crate::model::Track>) -> Try<LoadedTrack> {
         match track_id {
-            TrackId::Library(lib_track_id) => {
+            Id::Library(lib_track_id) => {
                 let lib = self.library.lock();
                 let track = lib
                     .get_track(*lib_track_id)?
@@ -110,32 +151,30 @@ impl App {
                     Err(anyhow!("no file available for track {}", track_id))
                 }
             }
-            TrackId::External(ExternalTrackId {
-                ref service_id,
-                ref track_id,
-            }) => {
+            Id::External(ExternalId { service, id }) => {
                 let svc = self
                     .services
-                    .get(service_id)
+                    .get(service)
                     .ok_or_else(|| anyhow!("unknown service for track ID {}", track_id))?;
-                svc.fetch(track_id)
+                svc.fetch(id)
             }
         }
     }
 
     fn get_tracks(&self, track_ids: &[String]) -> Response {
         let lib = self.library.lock();
-        let tracks: Result<BTreeMap<TrackId, Option<Track>>, anyhow::Error> = track_ids
-            .iter()
-            .map(|id| {
-                let id: TrackId = id.parse()?;
-                let track = match id {
-                    TrackId::Library(lib_id) => lib.get_track(lib_id)?,
-                    TrackId::External(_) => None,
-                };
-                Ok((id, track))
-            })
-            .collect();
+        let tracks: Result<BTreeMap<Id<crate::model::Track>, Option<Track>>, anyhow::Error> =
+            track_ids
+                .iter()
+                .map(|id| {
+                    let id = id.parse()?;
+                    let track = match id {
+                        Id::Library(lib_id) => lib.get_track(lib_id)?,
+                        Id::External(_) => None,
+                    };
+                    Ok((id, track))
+                })
+                .collect();
         ok(&tracks?)
     }
 
@@ -180,6 +219,44 @@ impl App {
                 })
                 .collect(),
         })
+    }
+
+    fn add_track_to_playlist(&self, track_id: &str, playlist_id: &str) -> Response {
+        let track_id: TrackId = track_id.parse()?;
+        let playlist_id: PlaylistId = playlist_id.parse()?;
+        match track_id {
+            TrackId::Library(track_id) => {
+                self.add_library_track_to_playlist(track_id, playlist_id)?
+            }
+            TrackId::External(track_id) => {
+                // verify that the playlist exists first
+                if !self.library.lock().playlist_exists(playlist_id)? {
+                    Err(anyhow!("non existent playlist {}", playlist_id.0))?
+                }
+                let track_id = self.add_external_track_to_library(track_id)?;
+                self.add_library_track_to_playlist(track_id, playlist_id)?;
+            }
+        }
+        done()
+    }
+
+    fn add_external_track_to_library(&self, track_id: ExternalTrackId) -> Try<LibraryTrackId> {
+        let svc = self
+            .services
+            .get(&track_id.service_id)
+            .ok_or_else(|| anyhow!("unrecognised service {}", track_id.service_id.0))?;
+        //svc.
+        todo!()
+    }
+
+    fn add_library_track_to_playlist(
+        &self,
+        track_id: LibraryTrackId,
+        playlist_id: PlaylistId,
+    ) -> Try<()> {
+        self.library
+            .lock()
+            .add_track_to_playlist(track_id, playlist_id)
     }
 
     fn completions(&self, prefix: &str) -> Response {

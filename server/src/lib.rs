@@ -14,6 +14,7 @@ mod player;
 mod queue;
 pub mod serde;
 pub mod server;
+pub mod services;
 mod websocket;
 #[macro_use]
 extern crate diesel;
