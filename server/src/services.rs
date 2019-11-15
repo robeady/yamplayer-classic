@@ -1,8 +1,7 @@
 use crate::api::search::SearchResults;
 use crate::errors::Try;
-use crate::model::{
-    Album, AlbumInfo, Artist, ArtistInfo, ExternalId, IdString, LoadedTrack, Track, TrackInfo,
-};
+use crate::ids::{Album, Artist, ExternalId, IdString, Track};
+use crate::model::{AlbumInfo, ArtistInfo, LoadedTrack, TrackInfo};
 
 #[derive(Eq, PartialEq, Hash, Ord, PartialOrd, Clone)]
 pub struct ServiceId(pub String);

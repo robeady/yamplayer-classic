@@ -2,10 +2,9 @@ pub mod search;
 
 use crate::errors::Try;
 use crate::file_completions::complete_file_path;
+use crate::ids::{ExternalId, Id, LibraryId, Playlist};
 use crate::library::{Library, Track};
-use crate::model::{
-    ExternalId, ExternalTrackId, Id, LibraryTrackId, LoadedTrack, PlaylistId, TrackId,
-};
+use crate::model::LoadedTrack;
 use crate::player::PlayerApp;
 use crate::queue::CurrentTrack;
 use crate::services::{Service, ServiceId};
@@ -133,7 +132,7 @@ impl App {
     //        }
     //    }
 
-    fn load_track(&self, track_id: &Id<crate::model::Track>) -> Try<LoadedTrack> {
+    fn load_track(&self, track_id: &Id<crate::ids::Track>) -> Try<LoadedTrack> {
         match track_id {
             Id::Library(lib_track_id) => {
                 let lib = self.library.lock();
@@ -163,7 +162,7 @@ impl App {
 
     fn get_tracks(&self, track_ids: &[String]) -> Response {
         let lib = self.library.lock();
-        let tracks: Result<BTreeMap<Id<crate::model::Track>, Option<Track>>, anyhow::Error> =
+        let tracks: Result<BTreeMap<Id<crate::ids::Track>, Option<Track>>, anyhow::Error> =
             track_ids
                 .iter()
                 .map(|id| {
@@ -204,7 +203,7 @@ impl App {
         }
         #[derive(Serialize)]
         struct PlaylistInfo {
-            id: PlaylistId,
+            id: LibraryId<Playlist>,
             name: String,
         }
         ok(&Playlists {
@@ -222,13 +221,11 @@ impl App {
     }
 
     fn add_track_to_playlist(&self, track_id: &str, playlist_id: &str) -> Response {
-        let track_id: TrackId = track_id.parse()?;
-        let playlist_id: PlaylistId = playlist_id.parse()?;
+        let track_id: Id<crate::ids::Track> = track_id.parse()?;
+        let playlist_id: LibraryId<Playlist> = playlist_id.parse()?;
         match track_id {
-            TrackId::Library(track_id) => {
-                self.add_library_track_to_playlist(track_id, playlist_id)?
-            }
-            TrackId::External(track_id) => {
+            Id::Library(track_id) => self.add_library_track_to_playlist(track_id, playlist_id)?,
+            Id::External(track_id) => {
                 // verify that the playlist exists first
                 if !self.library.lock().playlist_exists(playlist_id)? {
                     Err(anyhow!("non existent playlist {}", playlist_id.0))?
@@ -240,19 +237,22 @@ impl App {
         done()
     }
 
-    fn add_external_track_to_library(&self, track_id: ExternalTrackId) -> Try<LibraryTrackId> {
+    fn add_external_track_to_library(
+        &self,
+        track_id: ExternalId<crate::ids::Track>,
+    ) -> Try<LibraryId<crate::ids::Track>> {
         let svc = self
             .services
-            .get(&track_id.service_id)
-            .ok_or_else(|| anyhow!("unrecognised service {}", track_id.service_id.0))?;
+            .get(&track_id.service)
+            .ok_or_else(|| anyhow!("unrecognised service {}", track_id.id.0))?;
         //svc.
         todo!()
     }
 
     fn add_library_track_to_playlist(
         &self,
-        track_id: LibraryTrackId,
-        playlist_id: PlaylistId,
+        track_id: LibraryId<crate::ids::Track>,
+        playlist_id: LibraryId<Playlist>,
     ) -> Try<()> {
         self.library
             .lock()

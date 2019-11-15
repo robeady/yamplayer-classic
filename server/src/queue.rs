@@ -1,4 +1,4 @@
-use crate::model::{Id, Track};
+use crate::ids::{Id, Track};
 use crate::serde::string;
 use cpal::Format;
 use rodio::source::UniformSourceIterator;

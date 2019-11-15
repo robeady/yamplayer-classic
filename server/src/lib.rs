@@ -7,6 +7,7 @@ pub mod errors;
 mod file_completions;
 mod file_formats;
 mod http;
+pub mod ids;
 mod library;
 pub mod model;
 mod playback;

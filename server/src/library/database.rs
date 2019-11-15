@@ -4,16 +4,14 @@ use crate::api::search::SearchResults;
 use crate::api::EventSink;
 use crate::errors::Try;
 use crate::file_formats;
+use crate::ids::{Album, Artist, Id, LibraryId};
 use crate::library::{Playlist, Track};
-use crate::model::{
-    AlbumId, AlbumInfo, ArtistId, ArtistInfo, LibraryId, LibraryTrackId, PlaylistId, TrackInfo,
-};
-use diesel::debug_query;
+use crate::model::{AlbumInfo, ArtistInfo, TrackInfo};
 use diesel::dsl::exists;
 use diesel::prelude::*;
 use diesel::query_builder::QueryFragment;
 use diesel::sqlite::{Sqlite, SqliteConnection};
-use diesel::{insert_into, select, sql_types};
+use diesel::{debug_query, insert_into, select, sql_types};
 use std::collections::HashMap;
 use std::sync::Arc;
 use thread_local::CachedThreadLocal;
@@ -33,7 +31,7 @@ impl Library {
         Ok(rows.into_iter().map(into_track))
     }
 
-    pub fn get_track(&self, id: LibraryId<crate::model::Track>) -> Try<Option<Track>> {
+    pub fn get_track(&self, id: LibraryId<crate::ids::Track>) -> Try<Option<Track>> {
         let row: Option<(tables::Track, tables::Album, tables::Artist)> = tracks::table
             .find(id.0)
             .inner_join(albums::table)
@@ -48,9 +46,9 @@ impl Library {
     pub fn create_track(
         &self,
         track: TrackInfo,
-        album: AlbumId,
-        artist: ArtistId,
-    ) -> Try<LibraryTrackId> {
+        album: LibraryId<Album>,
+        artist: LibraryId<Artist>,
+    ) -> Try<LibraryId<crate::ids::Track>> {
         let c = self.connection()?;
         insert_into(tracks::table)
             .values(tables::Track {
@@ -64,10 +62,10 @@ impl Library {
             })
             .log()
             .execute(c)?;
-        Ok(LibraryTrackId(last_id(c)?))
+        Ok(LibraryId::new(last_id(c)?))
     }
 
-    pub fn create_album(&self, album: AlbumInfo) -> Try<AlbumId> {
+    pub fn create_album(&self, album: AlbumInfo) -> Try<LibraryId<Album>> {
         let c = self.connection()?;
         insert_into(albums::table)
             .values(tables::Album {
@@ -78,10 +76,10 @@ impl Library {
             })
             .log()
             .execute(c)?;
-        Ok(AlbumId(last_id(c)?))
+        Ok(LibraryId::new(last_id(c)?))
     }
 
-    pub fn find_albums(&self, title: &str) -> Try<Vec<(AlbumId, AlbumInfo)>> {
+    pub fn find_albums(&self, title: &str) -> Try<Vec<(LibraryId<Album>, AlbumInfo)>> {
         let albums: Vec<tables::Album> = albums::table
             .filter(albums::title.eq(title))
             .log()
@@ -90,7 +88,7 @@ impl Library {
             .into_iter()
             .map(|a| {
                 (
-                    AlbumId(a.album_id.unwrap()),
+                    LibraryId::new(a.album_id.unwrap()),
                     AlbumInfo {
                         title: a.title,
                         cover_image_url: a.cover_image_url.map(|u| u.parse().unwrap()),
@@ -101,7 +99,7 @@ impl Library {
             .collect())
     }
 
-    pub fn create_artist(&self, artist: ArtistInfo) -> Try<ArtistId> {
+    pub fn create_artist(&self, artist: ArtistInfo) -> Try<LibraryId<Artist>> {
         let c = self.connection()?;
         insert_into(artists::table)
             .values(tables::Artist {
@@ -111,10 +109,10 @@ impl Library {
             })
             .log()
             .execute(c)?;
-        Ok(ArtistId(last_id(c)?))
+        Ok(LibraryId::new(last_id(c)?))
     }
 
-    pub fn find_artists(&self, name: &str) -> Try<Vec<(ArtistId, ArtistInfo)>> {
+    pub fn find_artists(&self, name: &str) -> Try<Vec<(LibraryId<Artist>, ArtistInfo)>> {
         let artists: Vec<tables::Artist> = artists::table
             .filter(artists::name.eq(name))
             .log()
@@ -123,7 +121,7 @@ impl Library {
             .into_iter()
             .map(|a| {
                 (
-                    ArtistId(a.artist_id.unwrap()),
+                    LibraryId::new(a.artist_id.unwrap()),
                     ArtistInfo {
                         name: a.name,
                         image_url: a.image_url.map(|u| u.parse().unwrap()),
@@ -141,10 +139,10 @@ impl Library {
         let mut name_and_track_ids_by_playlist_id = HashMap::new();
         for (playlist, playlist_track) in rows {
             name_and_track_ids_by_playlist_id
-                .entry(PlaylistId(playlist_track.playlist_id))
+                .entry(LibraryId::new(playlist_track.playlist_id))
                 .or_insert((playlist.name, Vec::new()))
                 .1
-                .push(LibraryTrackId(playlist_track.track_id))
+                .push(LibraryId::new(playlist_track.track_id))
         }
         Ok(name_and_track_ids_by_playlist_id
             .into_iter()
@@ -155,7 +153,7 @@ impl Library {
             }))
     }
 
-    pub fn create_playlist(&self, name: String) -> Try<PlaylistId> {
+    pub fn create_playlist(&self, name: String) -> Try<LibraryId<crate::ids::Playlist>> {
         let c = self.connection()?;
         insert_into(playlists::table)
             .values(tables::Playlist {
@@ -165,13 +163,13 @@ impl Library {
             .log()
             .execute(c)?;
         let id = last_id(c)?;
-        Ok(PlaylistId(id))
+        Ok(LibraryId::new(id))
     }
 
-    pub fn get_playlist(&self, id: PlaylistId) -> Try<Option<Playlist>> {
+    pub fn get_playlist(&self, id: LibraryId<crate::ids::Playlist>) -> Try<Option<Playlist>> {
         let rows: Vec<(tables::Playlist, tables::PlaylistTrack)> = playlists::table
+            .find(id.0)
             .inner_join(playlist_tracks::table)
-            .filter(playlists::playlist_id.eq(Some(id.0)))
             .log()
             .load(self.connection()?)?;
         Ok(if rows.is_empty() {
@@ -179,18 +177,18 @@ impl Library {
         } else {
             let track_ids = rows
                 .iter()
-                .map(|(_, t)| LibraryTrackId(t.track_id))
+                .map(|(_, t)| LibraryId::new(t.track_id))
                 .collect();
             let (tables::Playlist { playlist_id, name }, _) = rows.into_iter().nth(0).unwrap();
             Some(Playlist {
-                id: PlaylistId(playlist_id.unwrap()),
+                id: LibraryId::new(playlist_id.unwrap()),
                 name,
                 track_ids,
             })
         })
     }
 
-    pub fn playlist_exists(&self, id: PlaylistId) -> Try<bool> {
+    pub fn playlist_exists(&self, id: LibraryId<crate::ids::Playlist>) -> Try<bool> {
         Ok(select(exists(playlists::table.find(id.0)))
             .log()
             .get_result(self.connection()?)?)
@@ -198,8 +196,8 @@ impl Library {
 
     pub fn add_track_to_playlist(
         &self,
-        track_id: LibraryTrackId,
-        playlist_id: PlaylistId,
+        track_id: LibraryId<crate::ids::Track>,
+        playlist_id: LibraryId<crate::ids::Playlist>,
     ) -> Try<()> {
         let c = self.connection()?;
         insert_into(playlist_tracks::table)
@@ -243,7 +241,7 @@ impl Library {
             .get_or_try(|| SqliteConnection::establish(&self.file_path))
     }
 
-    pub fn add_local_track(&self, file_path: String) -> Try<LibraryTrackId> {
+    pub fn add_local_track(&self, file_path: String) -> Try<LibraryId<crate::ids::Track>> {
         let (track, album, artist) = if file_path.ends_with(".mp3") {
             file_formats::mp3::read_metadata(file_path)?
         } else if file_path.ends_with(".flac") {
@@ -267,19 +265,19 @@ impl Library {
 
 fn into_track((track, album, artist): (tables::Track, tables::Album, tables::Artist)) -> Track {
     Track {
-        track_id: LibraryTrackId(track.track_id.unwrap()),
+        track_id: LibraryId::new(track.track_id.unwrap()),
         track_info: TrackInfo {
             title: track.title,
             isrc: track.isrc,
             duration_secs: track.duration_secs,
             file_path: track.file_path,
         },
-        artist_id: ArtistId(track.artist_id),
+        artist_id: LibraryId::new(track.artist_id),
         artist_info: ArtistInfo {
             name: artist.name,
             image_url: artist.image_url.map(|u| u.parse().unwrap()),
         },
-        album_id: AlbumId(track.album_id),
+        album_id: LibraryId::new(track.album_id),
         album_info: AlbumInfo {
             title: album.title,
             cover_image_url: album.cover_image_url.map(|u| u.parse().unwrap()),
