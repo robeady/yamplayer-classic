@@ -7,7 +7,7 @@ use crate::library::{Library, Track};
 use crate::model::LoadedTrack;
 use crate::player::PlayerApp;
 use crate::queue::CurrentTrack;
-use crate::services::{Service, ServiceId};
+use crate::services::{ExternalTrack, Service, ServiceId};
 use anyhow::Context;
 use fstrings::{f, format_args_f};
 use parking_lot::{Mutex, RwLock};
@@ -245,8 +245,26 @@ impl App {
             .services
             .get(&track_id.service)
             .ok_or_else(|| anyhow!("unrecognised service {}", track_id.id.0))?;
-        //svc.
-        todo!()
+        let ExternalTrack {
+            track_id,
+            track_info,
+            artist_id,
+            artist_info,
+            album_id,
+            album_info,
+        } = svc.track_info(&track_id.id)?;
+        let library = self.library.lock();
+        let album_id = library
+            .find_external_album(&album_id)
+            .map(|a| a.map(|(id, _)| id))
+            .transpose()
+            .unwrap_or_else(|| library.create_album(album_info, Some(album_id)))?;
+        let artist_id = library
+            .find_external_artist(&artist_id)
+            .map(|a| a.map(|(id, _)| id))
+            .transpose()
+            .unwrap_or_else(|| library.create_artist(artist_info, Some(artist_id)))?;
+        Ok(library.create_track(track_info, album_id, artist_id, Some(track_id))?)
     }
 
     fn add_library_track_to_playlist(

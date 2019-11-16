@@ -25,6 +25,33 @@ pub struct Artist {
 
 #[derive(Identifiable, Queryable, Insertable)]
 #[primary_key(_id)]
+pub struct ExternalAlbum {
+    pub _id: Option<i64>,
+    pub album_id: i64,
+    pub service_id: String,
+    pub external_id: String,
+}
+
+#[derive(Identifiable, Queryable, Insertable)]
+#[primary_key(_id)]
+pub struct ExternalArtist {
+    pub _id: Option<i64>,
+    pub artist_id: i64,
+    pub service_id: String,
+    pub external_id: String,
+}
+
+#[derive(Identifiable, Queryable, Insertable)]
+#[primary_key(_id)]
+pub struct ExternalTrack {
+    pub _id: Option<i64>,
+    pub track_id: i64,
+    pub service_id: String,
+    pub external_id: String,
+}
+
+#[derive(Identifiable, Queryable, Insertable)]
+#[primary_key(_id)]
 pub struct PlaylistTrack {
     pub _id: Option<i64>,
     pub playlist_id: i64,

@@ -1,1 +1,1 @@
-DROP TABLE tracks, artists, albums;
+DROP TABLE tracks, artists, albums, playlists, playlist_tracks;

@@ -1,10 +1,13 @@
-use super::schema::{albums, artists, playlist_tracks, playlists, tracks};
+use super::schema::{
+    albums, artists, external_albums, external_artists, external_tracks, playlist_tracks,
+    playlists, tracks,
+};
 use super::tables;
 use crate::api::search::SearchResults;
 use crate::api::EventSink;
 use crate::errors::Try;
 use crate::file_formats;
-use crate::ids::{Album, Artist, Id, LibraryId};
+use crate::ids::{Album, Artist, ExternalId, Id, LibraryId};
 use crate::library::{Playlist, Track};
 use crate::model::{AlbumInfo, ArtistInfo, TrackInfo};
 use diesel::dsl::exists;
@@ -48,87 +51,140 @@ impl Library {
         track: TrackInfo,
         album: LibraryId<Album>,
         artist: LibraryId<Artist>,
+        external_id: Option<ExternalId<crate::ids::Track>>,
     ) -> Try<LibraryId<crate::ids::Track>> {
-        let c = self.connection()?;
-        insert_into(tracks::table)
-            .values(tables::Track {
-                track_id: None,
-                album_id: album.0,
-                artist_id: artist.0,
-                title: track.title,
-                isrc: track.isrc,
-                duration_secs: track.duration_secs,
-                file_path: track.file_path,
-            })
-            .log()
-            .execute(c)?;
-        Ok(LibraryId::new(last_id(c)?))
+        self.in_transaction(|c| {
+            insert_into(tracks::table)
+                .values(tables::Track {
+                    track_id: None,
+                    album_id: album.0,
+                    artist_id: artist.0,
+                    title: track.title,
+                    isrc: track.isrc,
+                    duration_secs: track.duration_secs,
+                    file_path: track.file_path,
+                })
+                .log()
+                .execute(c)?;
+            let track_id = last_id(c)?;
+            if let Some(external_id) = external_id {
+                insert_into(external_tracks::table)
+                    .values(tables::ExternalTrack {
+                        _id: None,
+                        track_id,
+                        service_id: external_id.service.0,
+                        external_id: external_id.id.0,
+                    })
+                    .log()
+                    .execute(c)?;
+            }
+            Ok(LibraryId::new(track_id))
+        })
     }
 
-    pub fn create_album(&self, album: AlbumInfo) -> Try<LibraryId<Album>> {
-        let c = self.connection()?;
-        insert_into(albums::table)
-            .values(tables::Album {
-                album_id: None,
-                title: album.title,
-                cover_image_url: album.cover_image_url.map(|u| u.into_string()),
-                release_date: album.release_date.map(|d| d.to_string()),
-            })
-            .log()
-            .execute(c)?;
-        Ok(LibraryId::new(last_id(c)?))
+    pub fn create_album(
+        &self,
+        album: AlbumInfo,
+        external_id: Option<ExternalId<Album>>,
+    ) -> Try<LibraryId<Album>> {
+        self.in_transaction(|c| {
+            insert_into(albums::table)
+                .values(tables::Album {
+                    album_id: None,
+                    title: album.title,
+                    cover_image_url: album.cover_image_url.map(|u| u.into_string()),
+                    release_date: album.release_date.map(|d| d.to_string()),
+                })
+                .log()
+                .execute(c)?;
+            let album_id = last_id(c)?;
+            if let Some(external_id) = external_id {
+                insert_into(external_albums::table)
+                    .values(tables::ExternalAlbum {
+                        _id: None,
+                        album_id,
+                        service_id: external_id.service.0,
+                        external_id: external_id.id.0,
+                    })
+                    .log()
+                    .execute(c)?;
+            }
+            Ok(LibraryId::new(album_id))
+        })
     }
 
-    pub fn find_albums(&self, title: &str) -> Try<Vec<(LibraryId<Album>, AlbumInfo)>> {
+    pub fn find_albums_by_name(&self, title: &str) -> Try<Vec<(LibraryId<Album>, AlbumInfo)>> {
         let albums: Vec<tables::Album> = albums::table
             .filter(albums::title.eq(title))
             .log()
             .load(self.connection()?)?;
-        Ok(albums
-            .into_iter()
-            .map(|a| {
-                (
-                    LibraryId::new(a.album_id.unwrap()),
-                    AlbumInfo {
-                        title: a.title,
-                        cover_image_url: a.cover_image_url.map(|u| u.parse().unwrap()),
-                        release_date: a.release_date.map(|d| d.parse().unwrap()),
-                    },
-                )
-            })
-            .collect())
+        Ok(albums.into_iter().map(into_album).collect())
     }
 
-    pub fn create_artist(&self, artist: ArtistInfo) -> Try<LibraryId<Artist>> {
-        let c = self.connection()?;
-        insert_into(artists::table)
-            .values(tables::Artist {
-                artist_id: None,
-                name: artist.name,
-                image_url: artist.image_url.map(|u| u.into_string()),
-            })
+    pub fn find_external_album(
+        &self,
+        external_id: &ExternalId<Album>,
+    ) -> Try<Option<(LibraryId<Album>, AlbumInfo)>> {
+        let album: Option<(tables::ExternalAlbum, tables::Album)> = external_albums::table
+            .filter(external_albums::service_id.eq(&external_id.service.0))
+            .filter(external_albums::external_id.eq(&external_id.id.0))
+            .inner_join(albums::table)
             .log()
-            .execute(c)?;
-        Ok(LibraryId::new(last_id(c)?))
+            .first(self.connection()?)
+            .optional()?;
+        Ok(album.map(|(_, a)| into_album(a)))
     }
 
-    pub fn find_artists(&self, name: &str) -> Try<Vec<(LibraryId<Artist>, ArtistInfo)>> {
+    pub fn create_artist(
+        &self,
+        artist: ArtistInfo,
+        external_id: Option<ExternalId<Artist>>,
+    ) -> Try<LibraryId<Artist>> {
+        self.in_transaction(|c| {
+            insert_into(artists::table)
+                .values(tables::Artist {
+                    artist_id: None,
+                    name: artist.name,
+                    image_url: artist.image_url.map(|u| u.into_string()),
+                })
+                .log()
+                .execute(c)?;
+            let artist_id = last_id(c)?;
+            if let Some(external_id) = external_id {
+                insert_into(external_artists::table)
+                    .values(tables::ExternalArtist {
+                        _id: None,
+                        artist_id,
+                        service_id: external_id.service.0,
+                        external_id: external_id.id.0,
+                    })
+                    .log()
+                    .execute(c)?;
+            }
+            Ok(LibraryId::new(artist_id))
+        })
+    }
+
+    pub fn find_artists_by_name(&self, name: &str) -> Try<Vec<(LibraryId<Artist>, ArtistInfo)>> {
         let artists: Vec<tables::Artist> = artists::table
             .filter(artists::name.eq(name))
             .log()
             .load(self.connection()?)?;
-        Ok(artists
-            .into_iter()
-            .map(|a| {
-                (
-                    LibraryId::new(a.artist_id.unwrap()),
-                    ArtistInfo {
-                        name: a.name,
-                        image_url: a.image_url.map(|u| u.parse().unwrap()),
-                    },
-                )
-            })
-            .collect())
+        Ok(artists.into_iter().map(into_artist).collect())
+    }
+
+    pub fn find_external_artist(
+        &self,
+        external_id: &ExternalId<Artist>,
+    ) -> Try<Option<(LibraryId<Artist>, ArtistInfo)>> {
+        let artist: Option<(tables::ExternalArtist, tables::Artist)> = external_artists::table
+            .filter(external_artists::service_id.eq(&external_id.service.0))
+            .filter(external_artists::external_id.eq(&external_id.id.0))
+            .inner_join(artists::table)
+            .log()
+            .first(self.connection()?)
+            .optional()?;
+        Ok(artist.map(|(_, a)| into_artist(a)))
     }
 
     pub fn playlists(&self) -> Try<impl Iterator<Item = Playlist>> {
@@ -226,8 +282,9 @@ impl Library {
         Ok(db)
     }
 
-    pub fn in_transaction<T>(&self, f: impl FnOnce() -> Try<T>) -> Try<T> {
-        self.connection()?.transaction(f)
+    pub fn in_transaction<T>(&self, f: impl FnOnce(&SqliteConnection) -> Try<T>) -> Try<T> {
+        let c = self.connection()?;
+        c.transaction(|| f(c))
     }
 
     fn setup(&self) -> Try<()> {
@@ -250,16 +307,16 @@ impl Library {
             return Err(anyhow!("unsupported file type {}", file_path));
         };
         let album_id = self
-            .find_albums(&album.title)?
+            .find_albums_by_name(&album.title)?
             .first()
             .map(|(id, _)| *id)
-            .unwrap_or(self.create_album(album)?);
+            .unwrap_or(self.create_album(album, None)?);
         let artist_id = self
-            .find_artists(&artist.name)?
+            .find_artists_by_name(&artist.name)?
             .first()
             .map(|(id, _)| *id)
-            .unwrap_or(self.create_artist(artist)?);
-        Ok(self.create_track(track, album_id, artist_id)?)
+            .unwrap_or(self.create_artist(artist, None)?);
+        Ok(self.create_track(track, album_id, artist_id, None)?)
     }
 }
 
@@ -284,6 +341,27 @@ fn into_track((track, album, artist): (tables::Track, tables::Album, tables::Art
             release_date: album.release_date.map(|d| d.parse().unwrap()),
         },
     }
+}
+
+fn into_album(a: tables::Album) -> (LibraryId<Album>, AlbumInfo) {
+    (
+        LibraryId::new(a.album_id.unwrap()),
+        AlbumInfo {
+            title: a.title,
+            cover_image_url: a.cover_image_url.map(|u| u.parse().unwrap()),
+            release_date: a.release_date.map(|d| d.parse().unwrap()),
+        },
+    )
+}
+
+fn into_artist(a: tables::Artist) -> (LibraryId<Artist>, ArtistInfo) {
+    (
+        LibraryId::new(a.artist_id.unwrap()),
+        ArtistInfo {
+            name: a.name,
+            image_url: a.image_url.map(|u| u.parse().unwrap()),
+        },
+    )
 }
 
 trait QueryFragmentLogExt {
