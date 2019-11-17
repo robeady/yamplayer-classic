@@ -7,9 +7,10 @@ use crate::api::search::SearchResults;
 use crate::api::EventSink;
 use crate::errors::Try;
 use crate::file_formats;
-use crate::ids::{Album, Artist, ExternalId, Id, LibraryId};
+use crate::ids::{Album, Artist, ExternalId, Id, IdString, LibraryId};
 use crate::library::{Playlist, Track};
 use crate::model::{AlbumInfo, ArtistInfo, TrackInfo};
+use crate::services::ServiceId;
 use diesel::dsl::exists;
 use diesel::prelude::*;
 use diesel::query_builder::QueryFragment;
@@ -31,18 +32,27 @@ impl Library {
             .inner_join(artists::table)
             .log()
             .load(self.connection()?)?;
-        Ok(rows.into_iter().map(into_track))
+        // TODO: external IDs
+        Ok(rows.into_iter().map(|row| into_track(row, vec![])))
     }
 
     pub fn get_track(&self, id: LibraryId<crate::ids::Track>) -> Try<Option<Track>> {
-        let row: Option<(tables::Track, tables::Album, tables::Artist)> = tracks::table
+        let track_row: Option<(tables::Track, tables::Album, tables::Artist)> = tracks::table
             .find(id.0)
             .inner_join(albums::table)
             .inner_join(artists::table)
             .log()
             .first(self.connection()?)
             .optional()?;
-        Ok(row.map(into_track))
+        Ok(if let Some(row) = track_row {
+            let external_ids: Vec<(tables::ExternalTrack)> = external_tracks::table
+                .filter(external_tracks::track_id.eq(id.0))
+                .log()
+                .load(self.connection()?)?;
+            Some(into_track(row, external_ids))
+        } else {
+            None
+        })
     }
 
     // TODO: special error enum including track/playlist/artist/album not found
@@ -320,9 +330,19 @@ impl Library {
     }
 }
 
-fn into_track((track, album, artist): (tables::Track, tables::Album, tables::Artist)) -> Track {
+fn into_track(
+    (track, album, artist): (tables::Track, tables::Album, tables::Artist),
+    external_ids: Vec<tables::ExternalTrack>,
+) -> Track {
     Track {
         track_id: LibraryId::new(track.track_id.unwrap()),
+        external_ids: external_ids
+            .into_iter()
+            .map(|row| ExternalId {
+                service: ServiceId(row.service_id),
+                id: IdString::new(row.external_id),
+            })
+            .collect(),
         track_info: TrackInfo {
             title: track.title,
             isrc: track.isrc,

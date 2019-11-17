@@ -147,7 +147,17 @@ impl App {
                         duration_secs: track.track_info.duration_secs,
                     })
                 } else {
-                    Err(anyhow!("no file available for track {}", track_id))
+                    // TODO: if the track is external, try loading it
+                    for ext_id in track.external_ids {
+                        if let Some(service) = self.services.get(&ext_id.service) {
+                            log::info!("fetching track {} from {}", track_id, ext_id);
+                            return service.fetch(&ext_id.id);
+                        }
+                    }
+                    Err(anyhow!(
+                        "no file or external source available for track {}",
+                        track_id
+                    ))
                 }
             }
             Id::External(ExternalId { service, id }) => {

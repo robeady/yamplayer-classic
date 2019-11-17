@@ -4,7 +4,7 @@ mod tables;
 
 pub use database::Library;
 
-use crate::ids::{Album, Artist, LibraryId};
+use crate::ids::{Album, Artist, ExternalId, LibraryId};
 use crate::model::{AlbumInfo, ArtistInfo, TrackInfo};
 
 use serde_derive::Serialize;
@@ -12,7 +12,7 @@ use serde_derive::Serialize;
 #[derive(Serialize, Clone)]
 pub struct Track {
     pub track_id: LibraryId<crate::ids::Track>,
-    // pub external_ids: Vec<ExternalTrackId>,
+    pub external_ids: Vec<ExternalId<crate::ids::Track>>,
     pub track_info: TrackInfo,
     pub artist_id: LibraryId<Artist>,
     pub artist_info: ArtistInfo,

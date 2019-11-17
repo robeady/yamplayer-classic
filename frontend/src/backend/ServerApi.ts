@@ -15,6 +15,7 @@ interface ServerRPCApi {
     (type: "GetPlaybackState"): Promise<PlaybackState>
     (type: "ListPlaylists"): Promise<{ playlists: { id: string; name: string }[] }>
     (type: "GetPlaylist", args: { id: string }): Promise<{ name: string; track_ids: string[] } | null>
+    (type: "AddTrackToPlaylist", args: { track_id: string; playlist_id: string }): Promise<void>
     (type: "Search", args: { query: string }): Promise<SearchResults>
 }
 

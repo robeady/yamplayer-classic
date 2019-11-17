@@ -112,6 +112,12 @@ export class Library {
         }
     }
 
+    addToFirstPlaylist = (trackId: string) => {
+        this.serverApi.request("AddTrackToPlaylist", { track_id: trackId, playlist_id: this.playlists![0].id })
+        // TODO: return something?
+        // TODO: what if we don't have any playlists, or haven't loaded playlists yet?
+    }
+
     @observable private searchResults = new Map<string, SearchResults | "loading">()
 
     getSearchResults = (query: string): SearchResults | "loading" => {
