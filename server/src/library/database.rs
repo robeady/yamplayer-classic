@@ -4,6 +4,7 @@ use super::schema::{
 };
 use super::tables;
 use crate::api::search::SearchResults;
+use crate::api::Event;
 use crate::api::EventSink;
 use crate::errors::Try;
 use crate::file_formats;
@@ -23,6 +24,7 @@ use thread_local::CachedThreadLocal;
 pub struct Library {
     connection: CachedThreadLocal<SqliteConnection>,
     file_path: String,
+    event_sink: Arc<EventSink>,
 }
 
 impl Library {
@@ -63,7 +65,7 @@ impl Library {
         artist: LibraryId<Artist>,
         external_id: Option<ExternalId<crate::ids::Track>>,
     ) -> Try<LibraryId<crate::ids::Track>> {
-        self.in_transaction(|c| {
+        let id = self.in_transaction(|c| {
             insert_into(tracks::table)
                 .values(tables::Track {
                     track_id: None,
@@ -89,7 +91,11 @@ impl Library {
                     .execute(c)?;
             }
             Ok(LibraryId::new(track_id))
-        })
+        })?;
+        // TODO: don't re-query
+        self.event_sink
+            .broadcast(&Event::TrackAddedToLibrary(self.get_track(id)?.unwrap()));
+        Ok(id)
     }
 
     pub fn create_album(
@@ -275,6 +281,10 @@ impl Library {
             .log()
             .execute(c)?;
         // TODO: what if track id or playlist id don't exist (causes foreign key error)
+        self.event_sink.broadcast(&Event::TrackAddedToPlaylist {
+            track_id,
+            playlist_id,
+        });
         Ok(())
     }
 
@@ -287,6 +297,7 @@ impl Library {
         let db = Library {
             connection: CachedThreadLocal::new(),
             file_path,
+            event_sink,
         };
         db.setup()?;
         Ok(db)

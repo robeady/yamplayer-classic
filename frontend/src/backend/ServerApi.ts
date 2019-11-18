@@ -60,7 +60,8 @@ export interface CurrentTrack {
 export type ServerEvent =
     | { type: "VolumeChanged"; args: { muted: boolean; volume: number } }
     | { type: "PlaybackChanged"; args: { paused: boolean; current_track: CurrentTrack | null } }
-    | { type: "CurrentTrackChanged"; args: { current_track: CurrentTrack | null } }
+    | { type: "TrackAddedToLibrary"; args: Track }
+    | { type: "TrackAddedToPlaylist"; args: { track_id: string; playlist_id: string } }
 
 export class ServerApi {
     private handleEvent = (payload: Payload) => {

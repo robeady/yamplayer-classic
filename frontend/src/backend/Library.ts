@@ -11,7 +11,20 @@ export class Library {
     }
 
     private handleEvent = (e: ServerEvent) => {
-        // TODO: handle events like new playlists and tracks, tracks edited, etc
+        switch (e.type) {
+            case "TrackAddedToLibrary":
+                this.tracks.set(e.args.track_id, e.args)
+                if (this.libraryTrackIds !== null) {
+                    this.libraryTrackIds.add(e.args.track_id)
+                }
+                return
+            case "TrackAddedToPlaylist":
+                const trackIds = this.trackIdsByPlaylistId.get(e.args.playlist_id)
+                if (trackIds !== undefined) {
+                    trackIds.push(e.args.track_id)
+                }
+                return
+        }
     }
 
     @observable private tracks = new Map<string, Track | null>()
@@ -20,7 +33,7 @@ export class Library {
 
     @observable private playlists: Array<{ id: string; name: string }> | null = null
 
-    @observable private playlistTrackIds = new Map<string, string[]>()
+    @observable private trackIdsByPlaylistId = new Map<string, string[]>()
 
     getTrack = (trackId: string): Track | null => {
         const t = this.tracks.get(trackId)
@@ -75,7 +88,7 @@ export class Library {
     }
 
     listPlaylistTracks = (playlistId: string): Track[] | null => {
-        const trackIds = this.playlistTrackIds.get(playlistId)
+        const trackIds = this.trackIdsByPlaylistId.get(playlistId)
         if (trackIds === undefined) {
             this.serverApi.request("GetPlaylist", { id: playlistId }).then(playlist => {
                 if (playlist === null) {
@@ -106,7 +119,7 @@ export class Library {
         trackIds: string[],
         newTracksById: Record<string, Track | null>,
     ) => {
-        this.playlistTrackIds.set(playlistId, trackIds)
+        this.trackIdsByPlaylistId.set(playlistId, trackIds)
         for (const [tid, track] of Object.entries(newTracksById)) {
             this.tracks.set(tid, track)
         }

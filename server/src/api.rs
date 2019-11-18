@@ -23,6 +23,7 @@ pub struct App {
     pub player: PlayerApp,
     // TODO: no need for a mutex any more
     pub library: Mutex<Library>,
+    // TODO: do we need this here?
     pub event_sink: Arc<EventSink>,
 }
 
@@ -100,37 +101,6 @@ impl App {
         self.player.add_to_queue(track_id, track)?;
         done()
     }
-
-    //    fn load_track(&self, track_id: &TrackId) -> Try<LoadedTrack> {
-    //        match track_id {
-    //            TrackId::Library(lib_track_id) => {
-    //                let lib = self.library.lock();
-    //                let track = lib
-    //                    .get_track(*lib_track_id)?
-    //                    .ok_or_else(|| anyhow!("Unknown track {}", track_id))?;
-    //                if let Some(file_path) = track.track_info.file_path {
-    //                    log::info!("loading track {} from {}", track_id, file_path);
-    //                    Ok(LoadedTrack {
-    //                        data: fs::read(&file_path)
-    //                            .with_context(|| f!("failed to load track file {}", file_path))?,
-    //                        duration_secs: track.track_info.duration_secs,
-    //                    })
-    //                } else {
-    //                    Err(anyhow!("no file available for track {}", track_id))
-    //                }
-    //            }
-    //            TrackId::External(ExternalTrackId {
-    //                ref service_id,
-    //                ref track_id,
-    //            }) => {
-    //                let svc = self
-    //                    .services
-    //                    .get(service_id)
-    //                    .ok_or_else(|| anyhow!("unknown service for track ID {}", track_id))?;
-    //                svc.fetch(track_id)
-    //            }
-    //        }
-    //    }
 
     fn load_track(&self, track_id: &Id<crate::ids::Track>) -> Try<LoadedTrack> {
         match track_id {
@@ -364,6 +334,11 @@ pub enum Event {
     PlaybackChanged {
         paused: bool,
         current_track: Option<CurrentTrack>,
+    },
+    TrackAddedToLibrary(Track),
+    TrackAddedToPlaylist {
+        track_id: LibraryId<crate::ids::Track>,
+        playlist_id: LibraryId<Playlist>,
     },
 }
 
