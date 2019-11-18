@@ -138,7 +138,10 @@ export class Library {
             // TODO: don't keep all search results ever in memory.
             // this should be an expring cache or hold only the last search
             this.searchResults.set(query, "loading")
-            this.serverApi.request("Search", { query }).then(r => this.searchResults.set(query, r))
+            this.serverApi.request("Search", { query }).then(r => {
+                // TODO: update known tracks
+                this.searchResults.set(query, r)
+            })
         }
         return this.searchResults.get(query)!
     }

@@ -175,7 +175,7 @@ const NowPlaying = observer(() => {
                     justify-content: space-between;
                 `}>
                 <TrackSummary
-                    art="https://i.scdn.co/image/93852b7922b792c49e9198e09314c6b885eb1ed2"
+                    art={track && track.album_info.cover_image_url}
                     artist={(track && track.artist_info.name) || ""}
                     track={(track && track.track_info.title) || ""}
                 />
@@ -202,9 +202,9 @@ const NowPlaying = observer(() => {
     )
 })
 
-const TrackSummary = (props: { track: string; artist: string; art: string }) => (
+const TrackSummary = (props: { track: string; artist: string; art: string | null }) => (
     <FlexDiv>
-        <img src={props.art} height={70} alt="" />
+        <img src={props.art || undefined} height={70} alt="" />
         <div
             className={css`
                 display: flex;
