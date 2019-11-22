@@ -21,8 +21,7 @@ use std::sync::Arc;
 pub struct App {
     pub services: HashMap<ServiceId, Box<dyn Service>>,
     pub player: PlayerApp,
-    // TODO: no need for a mutex any more
-    pub library: Mutex<Library>,
+    pub library: Library,
     // TODO: do we need this here?
     pub event_sink: Arc<EventSink>,
 }
@@ -84,7 +83,6 @@ impl App {
             ListPlaylists => self.list_playlists(),
             GetPlaylist { ref id } => ok(&self
                 .library
-                .lock()
                 .get_playlist(id.parse()?)
                 .context("failed to get playlist")?),
             AddTrackToPlaylist {
@@ -105,8 +103,8 @@ impl App {
     fn load_track(&self, track_id: &Id<crate::ids::Track>) -> Try<LoadedTrack> {
         match track_id {
             Id::Library(lib_track_id) => {
-                let lib = self.library.lock();
-                let track = lib
+                let track = self
+                    .library
                     .get_track(*lib_track_id)?
                     .ok_or_else(|| anyhow!("Unknown track {}", track_id))?;
                 if let Some(file_path) = track.track_info.file_path {
@@ -141,14 +139,13 @@ impl App {
     }
 
     fn get_tracks(&self, track_ids: &[String]) -> Response {
-        let lib = self.library.lock();
         let tracks: Result<BTreeMap<Id<crate::ids::Track>, Option<Track>>, anyhow::Error> =
             track_ids
                 .iter()
                 .map(|id| {
                     let id = id.parse()?;
                     let track = match id {
-                        Id::Library(lib_id) => lib.get_track(lib_id)?,
+                        Id::Library(lib_id) => self.library.get_track(lib_id)?,
                         Id::External(_) => None,
                     };
                     Ok((id, track))
@@ -158,8 +155,8 @@ impl App {
     }
 
     fn list_library(&self) -> Response {
-        let lib = self.library.lock();
-        let tracks = lib
+        let tracks = self
+            .library
             .tracks()
             .context("error loading tracks")?
             .map(Into::into)
@@ -168,7 +165,7 @@ impl App {
     }
 
     fn add_to_library(&self, track_file_path: String) -> Response {
-        self.library.lock().add_local_track(track_file_path)?;
+        self.library.add_local_track(track_file_path)?;
         done()
     }
 
@@ -189,7 +186,6 @@ impl App {
         ok(&Playlists {
             playlists: self
                 .library
-                .lock()
                 .playlists()
                 .context("Error loading playlists")?
                 .map(|p| PlaylistInfo {
@@ -207,7 +203,7 @@ impl App {
             Id::Library(track_id) => self.add_library_track_to_playlist(track_id, playlist_id)?,
             Id::External(track_id) => {
                 // verify that the playlist exists first
-                if !self.library.lock().playlist_exists(playlist_id)? {
+                if !self.library.playlist_exists(playlist_id)? {
                     Err(anyhow!("non existent playlist {}", playlist_id.0))?
                 }
                 let track_id = self.add_external_track_to_library(track_id)?;
@@ -233,18 +229,21 @@ impl App {
             album_id,
             album_info,
         } = svc.track_info(&track_id.id)?;
-        let library = self.library.lock();
-        let album_id = library
+        let album_id = self
+            .library
             .find_external_album(&album_id)
             .map(|a| a.map(|(id, _)| id))
             .transpose()
-            .unwrap_or_else(|| library.create_album(album_info, Some(album_id)))?;
-        let artist_id = library
+            .unwrap_or_else(|| self.library.create_album(album_info, Some(album_id)))?;
+        let artist_id = self
+            .library
             .find_external_artist(&artist_id)
             .map(|a| a.map(|(id, _)| id))
             .transpose()
-            .unwrap_or_else(|| library.create_artist(artist_info, Some(artist_id)))?;
-        Ok(library.create_track(track_info, album_id, artist_id, Some(track_id))?)
+            .unwrap_or_else(|| self.library.create_artist(artist_info, Some(artist_id)))?;
+        Ok(self
+            .library
+            .create_track(track_info, album_id, artist_id, Some(track_id))?)
     }
 
     fn add_library_track_to_playlist(
@@ -252,9 +251,7 @@ impl App {
         track_id: LibraryId<crate::ids::Track>,
         playlist_id: LibraryId<Playlist>,
     ) -> Try<()> {
-        self.library
-            .lock()
-            .add_track_to_playlist(track_id, playlist_id)
+        self.library.add_track_to_playlist(track_id, playlist_id)
     }
 
     fn completions(&self, prefix: &str) -> Response {
@@ -272,7 +269,6 @@ impl App {
         let results = service.search(query)?;
         ok(&self
             .library
-            .lock()
             .resolve(results)
             .context("failed to resolve search results")?)
     }

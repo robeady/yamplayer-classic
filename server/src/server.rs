@@ -42,7 +42,7 @@ impl Server {
         let app = Arc::new(App {
             services: self.services,
             player: player_app,
-            library: Mutex::new(library),
+            library,
             event_sink: Arc::clone(&event_sink),
         });
 
