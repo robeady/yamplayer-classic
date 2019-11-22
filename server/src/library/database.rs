@@ -304,6 +304,7 @@ impl Library {
     }
 
     pub fn in_transaction<T>(&self, f: impl FnOnce(&SqliteConnection) -> Try<T>) -> Try<T> {
+        // TODO: this probably shouldn't be public because sqlite doesn't allow nested transactions
         let c = self.connection()?;
         c.transaction(|| f(c))
     }
@@ -315,6 +316,7 @@ impl Library {
     fn connection(&self) -> ConnectionResult<&SqliteConnection> {
         // TODO: create if not open yet?
         // TODO: enforce foreign key constraints
+        // TODO: should we enable more settings? How about WAL mode?
         self.connection
             .get_or_try(|| SqliteConnection::establish(&self.file_path))
     }
