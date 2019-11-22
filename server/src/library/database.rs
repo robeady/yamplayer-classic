@@ -328,15 +328,15 @@ impl Library {
             return Err(anyhow!("unsupported file type {}", file_path));
         };
         let album_id = self
-            .find_albums_by_name(&album.title)?
-            .first()
-            .map(|(id, _)| *id)
-            .unwrap_or(self.create_album(album, None)?);
+            .find_albums_by_name(&album.title)
+            .map(|a| a.first().map(|(id, _)| *id))
+            .transpose()
+            .unwrap_or_else(|| self.create_album(album, None))?;
         let artist_id = self
-            .find_artists_by_name(&artist.name)?
-            .first()
-            .map(|(id, _)| *id)
-            .unwrap_or(self.create_artist(artist, None)?);
+            .find_artists_by_name(&artist.name)
+            .map(|a| a.first().map(|(id, _)| *id))
+            .transpose()
+            .unwrap_or_else(|| self.create_artist(artist, None))?;
         Ok(self.create_track(track, album_id, artist_id, None)?)
     }
 }
