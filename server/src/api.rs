@@ -29,6 +29,7 @@ pub struct App {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type", content = "args")]
 pub enum Request {
+    GetPlaybackState,
     Enqueue {
         track_id: String,
     },
@@ -50,7 +51,8 @@ pub enum Request {
     AddToLibrary {
         path: String,
     },
-    GetPlaybackState,
+    ListAlbums,
+    ListArtists,
     ListPlaylists,
     GetPlaylist {
         id: String,
@@ -69,6 +71,7 @@ impl App {
         use Request::*;
         #[allow(clippy::unit_arg)]
         match request {
+            GetPlaybackState => self.get_playback_state(),
             Enqueue { track_id } => self.enqueue(track_id),
             Stop => self.player.empty_queue().and_done(),
             Pause => self.player.pause().and_done(),
@@ -79,7 +82,8 @@ impl App {
             GetTracks { track_ids } => self.get_tracks(track_ids),
             GetLibrary => self.list_library(),
             AddToLibrary { path } => self.add_to_library(path.clone()),
-            GetPlaybackState => self.get_playback_state(),
+            ListAlbums => self.list_albums(),
+            ListArtists => self.list_artists(),
             ListPlaylists => self.list_playlists(),
             GetPlaylist { ref id } => ok(&self
                 .library
@@ -169,6 +173,14 @@ impl App {
 
     fn get_playback_state(&self) -> Response {
         ok(&self.player.playback_state())
+    }
+
+    fn list_albums(&self) -> Response {
+        ok(&self.library.albums()?.collect::<Vec<_>>())
+    }
+
+    fn list_artists(&self) -> Response {
+        ok(&self.library.artists()?.collect::<Vec<_>>())
     }
 
     fn list_playlists(&self) -> Response {

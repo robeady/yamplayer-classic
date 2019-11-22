@@ -98,6 +98,12 @@ impl Library {
         Ok(id)
     }
 
+    pub fn albums(&self) -> Try<impl Iterator<Item = (LibraryId<Album>, AlbumInfo)>> {
+        // TODO: how can I log this? Table doesn't implement QueryFragment
+        let rows: Vec<(tables::Album)> = albums::table.load(self.connection()?)?;
+        Ok(rows.into_iter().map(|row| into_album(row)))
+    }
+
     pub fn create_album(
         &self,
         album: AlbumInfo,
@@ -149,6 +155,12 @@ impl Library {
             .first(self.connection()?)
             .optional()?;
         Ok(album.map(|(_, a)| into_album(a)))
+    }
+
+    pub fn artists(&self) -> Try<impl Iterator<Item = (LibraryId<Artist>, ArtistInfo)>> {
+        // TODO: how can I log this? Table doesn't implement QueryFragment
+        let rows: Vec<(tables::Artist)> = artists::table.load(self.connection()?)?;
+        Ok(rows.into_iter().map(|row| into_artist(row)))
     }
 
     pub fn create_artist(
