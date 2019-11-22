@@ -4,15 +4,15 @@ mod tables;
 
 pub use database::Library;
 
-use crate::ids::{Album, Artist, ExternalId, LibraryId};
+use crate::ids::{Album, Artist, ExternalId, LibraryId, Track};
 use crate::model::{AlbumInfo, ArtistInfo, TrackInfo};
 
 use serde_derive::Serialize;
 
 #[derive(Serialize, Clone)]
-pub struct Track {
-    pub track_id: LibraryId<crate::ids::Track>,
-    pub external_ids: Vec<ExternalId<crate::ids::Track>>,
+pub struct TrackSummary {
+    pub track_id: LibraryId<Track>,
+    pub external_ids: Vec<ExternalId<Track>>,
     pub track_info: TrackInfo,
     pub artist_id: LibraryId<Artist>,
     pub artist_info: ArtistInfo,
@@ -24,11 +24,11 @@ pub struct Track {
 pub struct Playlist {
     pub id: LibraryId<crate::ids::Playlist>,
     pub name: String,
-    track_ids: Vec<LibraryId<crate::ids::Track>>,
+    track_ids: Vec<LibraryId<Track>>,
 }
 
 impl Playlist {
-    fn tracks(&self) -> impl Iterator<Item = LibraryId<crate::ids::Track>> + '_ {
+    fn tracks(&self) -> impl Iterator<Item = LibraryId<Track>> + '_ {
         self.track_ids.iter().copied()
     }
 }

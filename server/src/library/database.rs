@@ -8,8 +8,8 @@ use crate::api::Event;
 use crate::api::EventSink;
 use crate::errors::Try;
 use crate::file_formats;
-use crate::ids::{Album, Artist, ExternalId, Id, IdString, LibraryId};
-use crate::library::{Playlist, Track};
+use crate::ids::{Album, Artist, ExternalId, IdString, LibraryId, Track};
+use crate::library::{Playlist, TrackSummary};
 use crate::model::{AlbumInfo, ArtistInfo, TrackInfo};
 use crate::services::ServiceId;
 use diesel::dsl::exists;
@@ -28,7 +28,7 @@ pub struct Library {
 }
 
 impl Library {
-    pub fn tracks(&self) -> Try<impl Iterator<Item = Track>> {
+    pub fn tracks(&self) -> Try<impl Iterator<Item = TrackSummary>> {
         let rows: Vec<(tables::Track, tables::Album, tables::Artist)> = tracks::table
             .inner_join(albums::table)
             .inner_join(artists::table)
@@ -38,7 +38,7 @@ impl Library {
         Ok(rows.into_iter().map(|row| into_track(row, vec![])))
     }
 
-    pub fn get_track(&self, id: LibraryId<crate::ids::Track>) -> Try<Option<Track>> {
+    pub fn get_track(&self, id: LibraryId<Track>) -> Try<Option<TrackSummary>> {
         let track_row: Option<(tables::Track, tables::Album, tables::Artist)> = tracks::table
             .find(id.0)
             .inner_join(albums::table)
@@ -63,8 +63,8 @@ impl Library {
         track: TrackInfo,
         album: LibraryId<Album>,
         artist: LibraryId<Artist>,
-        external_id: Option<ExternalId<crate::ids::Track>>,
-    ) -> Try<LibraryId<crate::ids::Track>> {
+        external_id: Option<ExternalId<Track>>,
+    ) -> Try<LibraryId<Track>> {
         let id = self.in_transaction(|c| {
             insert_into(tracks::table)
                 .values(tables::Track {
@@ -268,7 +268,7 @@ impl Library {
 
     pub fn add_track_to_playlist(
         &self,
-        track_id: LibraryId<crate::ids::Track>,
+        track_id: LibraryId<Track>,
         playlist_id: LibraryId<crate::ids::Playlist>,
     ) -> Try<()> {
         let c = self.connection()?;
@@ -321,7 +321,7 @@ impl Library {
             .get_or_try(|| SqliteConnection::establish(&self.file_path))
     }
 
-    pub fn add_local_track(&self, file_path: String) -> Try<LibraryId<crate::ids::Track>> {
+    pub fn add_local_track(&self, file_path: String) -> Try<LibraryId<Track>> {
         let (track, album, artist) = if file_path.ends_with(".mp3") {
             file_formats::mp3::read_metadata(file_path)?
         } else if file_path.ends_with(".flac") {
@@ -346,8 +346,8 @@ impl Library {
 fn into_track(
     (track, album, artist): (tables::Track, tables::Album, tables::Artist),
     external_ids: Vec<tables::ExternalTrack>,
-) -> Track {
-    Track {
+) -> TrackSummary {
+    TrackSummary {
         track_id: LibraryId::new(track.track_id.unwrap()),
         external_ids: external_ids
             .into_iter()

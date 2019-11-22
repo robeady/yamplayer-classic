@@ -2,8 +2,8 @@ pub mod search;
 
 use crate::errors::Try;
 use crate::file_completions::complete_file_path;
-use crate::ids::{ExternalId, Id, LibraryId, Playlist};
-use crate::library::{Library, Track};
+use crate::ids::{ExternalId, Id, LibraryId, Playlist, Track};
+use crate::library::{Library, TrackSummary};
 use crate::model::LoadedTrack;
 use crate::player::PlayerApp;
 use crate::queue::CurrentTrack;
@@ -100,7 +100,7 @@ impl App {
         done()
     }
 
-    fn load_track(&self, track_id: &Id<crate::ids::Track>) -> Try<LoadedTrack> {
+    fn load_track(&self, track_id: &Id<Track>) -> Try<LoadedTrack> {
         match track_id {
             Id::Library(lib_track_id) => {
                 let track = self
@@ -115,7 +115,6 @@ impl App {
                         duration_secs: track.track_info.duration_secs,
                     })
                 } else {
-                    // TODO: if the track is external, try loading it
                     for ext_id in track.external_ids {
                         if let Some(service) = self.services.get(&ext_id.service) {
                             log::info!("fetching track {} from {}", track_id, ext_id);
@@ -139,18 +138,17 @@ impl App {
     }
 
     fn get_tracks(&self, track_ids: &[String]) -> Response {
-        let tracks: Result<BTreeMap<Id<crate::ids::Track>, Option<Track>>, anyhow::Error> =
-            track_ids
-                .iter()
-                .map(|id| {
-                    let id = id.parse()?;
-                    let track = match id {
-                        Id::Library(lib_id) => self.library.get_track(lib_id)?,
-                        Id::External(_) => None,
-                    };
-                    Ok((id, track))
-                })
-                .collect();
+        let tracks: Result<BTreeMap<Id<Track>, Option<TrackSummary>>, anyhow::Error> = track_ids
+            .iter()
+            .map(|id| {
+                let id = id.parse()?;
+                let track = match id {
+                    Id::Library(lib_id) => self.library.get_track(lib_id)?,
+                    Id::External(_) => None,
+                };
+                Ok((id, track))
+            })
+            .collect();
         ok(&tracks?)
     }
 
@@ -197,7 +195,7 @@ impl App {
     }
 
     fn add_track_to_playlist(&self, track_id: &str, playlist_id: &str) -> Response {
-        let track_id: Id<crate::ids::Track> = track_id.parse()?;
+        let track_id: Id<Track> = track_id.parse()?;
         let playlist_id: LibraryId<Playlist> = playlist_id.parse()?;
         match track_id {
             Id::Library(track_id) => self.add_library_track_to_playlist(track_id, playlist_id)?,
@@ -213,10 +211,7 @@ impl App {
         done()
     }
 
-    fn add_external_track_to_library(
-        &self,
-        track_id: ExternalId<crate::ids::Track>,
-    ) -> Try<LibraryId<crate::ids::Track>> {
+    fn add_external_track_to_library(&self, track_id: ExternalId<Track>) -> Try<LibraryId<Track>> {
         let svc = self
             .services
             .get(&track_id.service)
@@ -248,7 +243,7 @@ impl App {
 
     fn add_library_track_to_playlist(
         &self,
-        track_id: LibraryId<crate::ids::Track>,
+        track_id: LibraryId<Track>,
         playlist_id: LibraryId<Playlist>,
     ) -> Try<()> {
         self.library.add_track_to_playlist(track_id, playlist_id)
@@ -276,7 +271,7 @@ impl App {
 
 #[derive(Serialize)]
 struct LibraryListing {
-    tracks: Vec<Track>,
+    tracks: Vec<TrackSummary>,
 }
 
 #[derive(Debug, Clone)]
@@ -331,9 +326,9 @@ pub enum Event {
         paused: bool,
         current_track: Option<CurrentTrack>,
     },
-    TrackAddedToLibrary(Track),
+    TrackAddedToLibrary(TrackSummary),
     TrackAddedToPlaylist {
-        track_id: LibraryId<crate::ids::Track>,
+        track_id: LibraryId<Track>,
         playlist_id: LibraryId<Playlist>,
     },
 }
