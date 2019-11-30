@@ -2,7 +2,10 @@ import React, { ReactNode } from "react"
 import { css } from "linaria"
 import { observer } from "mobx-react-lite"
 import { useBackend } from "../backend/backend"
-import { Flex, Box, Image, Button } from "rebass"
+import { Flex, Button } from "../elements"
+import { Box } from "rebass"
+import { styled } from "linaria/react"
+import { color, space } from "../elements/theme"
 
 export const TrackTable = observer((props: { tracks: TableTrack[] }) => {
     const { playback, library } = useBackend()
@@ -24,6 +27,10 @@ export interface TableTrack {
     durationSecs: number
 }
 
+const TrackIcon = styled.img`
+    display: block;
+`
+
 function TrackRow(props: {
     track: TableTrack
     enqueue: (trackId: string) => void
@@ -31,12 +38,14 @@ function TrackRow(props: {
 }) {
     return (
         <Flex
-            p={1}
-            alignItems="center"
-            sx={{ borderBottomStyle: "solid", borderBottomWidth: "1px", borderColor: "border" }}
+            className={css`
+                border-bottom: 1px solid ${color.border};
+                padding: ${space[1]};
+                align-items: center;
+            `}
             key={props.track.id}>
             <Box pr={3}>
-                <Image display="block" width={32} height={32} src={props.track.coverImageUrl} alt="" />
+                <TrackIcon width={32} height={32} src={props.track.coverImageUrl} alt="" />
             </Box>
             <Box flex="1" onClick={() => props.enqueue(props.track.id)} title="Click to enqueue">
                 <Clickable>{props.track.title}</Clickable>
