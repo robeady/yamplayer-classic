@@ -1,6 +1,6 @@
 import React, { useState } from "react"
 import { withRouter, RouteComponentProps } from "react-router-dom"
-import { Flex, Box, Heading, Button, Image } from "rebass"
+import { Flex, Heading, Button, Grid } from "../elements"
 import { css } from "linaria"
 import { styled } from "linaria/react"
 import { Link } from "./links"
@@ -8,6 +8,8 @@ import { SearchResults } from "../backend/ServerApi"
 import { useBackend } from "../backend/backend"
 import { observer } from "mobx-react-lite"
 import { TrackTable } from "../components/TrackTable"
+import { space } from "../elements/theme"
+import { iterate } from "iterare"
 
 export const SearchResultsScreen = observer((props: { query: string }) => {
     const results = useBackend().library.getSearchResults(props.query)
@@ -16,18 +18,18 @@ export const SearchResultsScreen = observer((props: { query: string }) => {
     }
     return (
         <>
-            <Heading py={3}>Tracks</Heading>
+            <Heading>Tracks</Heading>
             <Tracks {...results} />
             <Button>Go home</Button>
-            <Heading py={3}>Artists</Heading>
+            <Heading>Artists</Heading>
             <Artists artists={results.artists} />
-            <Heading py={3}>Albums</Heading>
+            <Heading>Albums</Heading>
             <Albums albums={results.albums} />
         </>
     )
 })
 
-const HoverImage = styled(Image)`
+const HoverImage = styled.img`
     &:hover {
         opacity: 0.8;
     }
@@ -50,52 +52,75 @@ const Tracks = (props: SearchResults) => {
 
 const Artists = (props: { artists: SearchResults["artists"] }) => {
     return (
-        <Flex flexWrap="wrap">
-            {props.artists.map(a => {
-                const link = `/artists/${a.library_id || a.external_id}`
-                return (
-                    <Flex flexDirection="column" p={3}>
-                        <Link to={link}>
-                            <HoverImage
-                                className={css`
-                                    border-radius: 50%;
-                                `}
-                                src={a.info.image_url || unknownArtistImageUrl}
-                                height={150}
-                                width={150}
-                            />
-                        </Link>
-                        <Link
-                            marginTop={2}
+        <Flex
+            className={css`
+                flex-wrap: wrap;
+                margin: 0 -${space[3]};
+            `}>
+            {iterate(props.artists)
+                .take(24)
+                .map(a => {
+                    const link = `/artists/${a.library_id || a.external_id}`
+                    return (
+                        <Grid
+                            direction="y"
+                            gap={1}
                             className={css`
-                                text-align: center;
-                            `}
-                            to={link}>
-                            {a.info.name}
-                        </Link>
-                    </Flex>
-                )
-            })}
+                                margin: ${space[2]} ${space[3]};
+                            `}>
+                            <Link to={link}>
+                                <HoverImage
+                                    className={css`
+                                        border-radius: 50%;
+                                    `}
+                                    src={a.info.image_url || unknownArtistImageUrl}
+                                    height={150}
+                                    width={150}
+                                />
+                            </Link>
+                            <Link
+                                className={css`
+                                    text-align: center;
+                                    max-width: 150px;
+                                `}
+                                to={link}>
+                                {a.info.name}
+                            </Link>
+                        </Grid>
+                    )
+                })
+                .toArray()}
         </Flex>
     )
 }
 
 const Albums = (props: { albums: SearchResults["albums"] }) => {
     return (
-        <Flex flexWrap="wrap">
-            {props.albums.map(a => (
-                <Flex p={3} flexDirection="column">
-                    <HoverImage src={a.info.cover_image_url || unknownArtistImageUrl} height={150} width={150} />
-                    <Box
-                        marginTop={2}
-                        maxWidth={150}
+        <Flex
+            className={css`
+                flex-wrap: wrap;
+                margin: 0 -${space[3]};
+            `}>
+            {iterate(props.albums)
+                .take(24)
+                .map(a => (
+                    <Grid
+                        direction="y"
+                        gap={2}
                         className={css`
-                            text-align: center;
+                            margin: ${space[2]} ${space[3]};
                         `}>
-                        {a.info.title}
-                    </Box>
-                </Flex>
-            ))}
+                        <HoverImage src={a.info.cover_image_url || unknownArtistImageUrl} height={150} width={150} />
+                        <span
+                            className={css`
+                                max-width: 150px;
+                                text-align: center;
+                            `}>
+                            {a.info.title}
+                        </span>
+                    </Grid>
+                ))
+                .toArray()}
         </Flex>
     )
 }
