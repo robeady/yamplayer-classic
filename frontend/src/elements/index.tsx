@@ -19,6 +19,8 @@ export const Button = styled.button`
     color: white;
     background-color: ${color.primary};
     border: 0;
+    font: unset;
+    border-radius: 4px;
 `
 
 function gridAutoFlow(direction?: "x" | "y"): "column" | "row" | "unset" {
